@@ -1,5 +1,6 @@
 package net.azisaba.interchat.velocity.database;
 
+import com.velocitypowered.api.proxy.Player;
 import com.zaxxer.hikari.HikariDataSource;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
@@ -37,7 +38,8 @@ public final class DatabaseManager {
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_members` (" +
                     "  `guild_id` BIGINT NOT NULL," +
                     "  `uuid` VARCHAR(36) NOT NULL," +
-                    "  `role` VARCHAR(64) NOT NULL DEFAULT 'MEMBER'" +
+                    "  `role` VARCHAR(64) NOT NULL DEFAULT 'MEMBER'," +
+                    "  PRIMARY KEY (`guild_id`, `uuid`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_logs` (" +
                     "  `id` BIGINT NOT NULL AUTO_INCREMENT," +
@@ -124,6 +126,10 @@ public final class DatabaseManager {
                 Logger.getCurrentLogger().error("Failed to submit log", e);
             }
         });
+    }
+
+    public void submitLog(long guildId, @NotNull Player player, @NotNull String description) {
+        submitLog(guildId, player.getUniqueId().toString(), player.getUsername(), description);
     }
 
     @NotNull

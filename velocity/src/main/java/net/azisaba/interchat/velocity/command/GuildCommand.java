@@ -5,9 +5,15 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.Logger;
+import net.azisaba.interchat.api.guild.Guild;
+import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.guild.GuildRole;
 import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.ProxyboundGuildMessagePacket;
+import net.azisaba.interchat.api.text.MessageFormatter;
+import net.azisaba.interchat.api.user.User;
+import net.azisaba.interchat.api.util.Functions;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.text.VMessages;
@@ -18,23 +24,47 @@ import org.jetbrains.annotations.NotNull;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
 import java.util.concurrent.CompletionException;
+import java.util.function.Function;
+import java.util.regex.Pattern;
 
 public class GuildCommand extends AbstractCommand {
+    private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     private static final String COMMAND_NAME = "guild_test";
+    private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
+    private static final Function<String, User> SAMPLE_USERS = Functions.memorize(s ->
+            new User(new UUID(0, 0), s, -1, false)
+    );
 
     @Override
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
         return literal(COMMAND_NAME)
+                .requires(source -> source instanceof Player && source.hasPermission("interchat.guild"))
                 .then(literal("create")
-                        .requires(source -> source instanceof Player)
+                        .requires(source -> source.hasPermission("interchat.guild.create"))
                         .then(argument("name", StringArgumentType.word())
                                 .executes(ctx -> executeCreate((Player) ctx.getSource(), StringArgumentType.getString(ctx, "name")))
                         )
                 )
+                .then(literal("format")
+                        .requires(source -> source.hasPermission("interchat.guild.format"))
+                        .then(argument("format", StringArgumentType.greedyString())
+                                .suggests((context, builder) -> {
+                                    User sampleUser = SAMPLE_USERS.apply(((Player) context.getSource()).getUsername());
+                                    String format = context.getLastChild()
+                                            .getInput()
+                                            .replaceFirst(COMMAND_NAME + " format ", "");
+                                    String formatted = "\u00a7r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "test");
+                                    return builder.suggest(formatted.replace('&', '\u00a7')).buildFuture();
+                                })
+                                .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
+                        )
+                )
                 .then(literal("chat")
-                        .requires(source -> source instanceof Player)
+                        .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .then(argument("message", StringArgumentType.greedyString())
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
@@ -42,6 +72,10 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeCreate(@NotNull Player player, @NotNull String name) {
+        if (!GUILD_NAME_PATTERN.matcher(name).matches()) {
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.create.invalid_name"), NamedTextColor.RED));
+            return 1;
+        }
         try {
             InterChatProvider.get().getGuildManager().fetchGuildByName(name).join();
             player.sendMessage(Component.text(VMessages.format(player, "command.guild.create.already_exists"), NamedTextColor.RED));
@@ -70,6 +104,7 @@ public class GuildCommand extends AbstractCommand {
                 }
                 keys.close();
             }
+            db.submitLog(guildId, player, "Created guild");
             // mark the player as the owner of the guild
             db.runPrepareStatement("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?)", stmt -> {
                 stmt.setLong(1, guildId);
@@ -77,6 +112,7 @@ public class GuildCommand extends AbstractCommand {
                 stmt.setString(3, GuildRole.OWNER.name());
                 stmt.executeUpdate();
             });
+            db.submitLog(guildId, player, "Set owner to " + player.getUsername() + "(" + player.getUniqueId() + ")");
             // select the guild
             db.runPrepareStatement("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
                 stmt.setLong(1, guildId);
@@ -87,6 +123,37 @@ public class GuildCommand extends AbstractCommand {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+        return 0;
+    }
+
+    private static int executeFormat(@NotNull Player player, @NotNull String format) {
+        if (!format.contains("%msg") || !format.contains("%username")) {
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.format.invalid_format"), NamedTextColor.RED));
+            return 0;
+        }
+        long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().selectedGuild();
+        if (selectedGuild == -1) {
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.not_selected", COMMAND_NAME), NamedTextColor.RED));
+            return 0;
+        }
+        GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (GuildRole.MODERATOR.ordinal() < member.role().ordinal()) {
+            // member must be at least moderator to change the format
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.format.not_moderator"), NamedTextColor.RED));
+            return 0;
+        }
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `format` = ? WHERE `id` = ?", stmt -> {
+                stmt.setString(1, format);
+                stmt.setLong(2, selectedGuild);
+                stmt.executeUpdate();
+            });
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.format.success"), NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to change format of guild " + selectedGuild, e);
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.format.error"), NamedTextColor.RED));
+        }
+        DatabaseManager.get().submitLog(selectedGuild, player, "Set format to " + format);
         return 0;
     }
 

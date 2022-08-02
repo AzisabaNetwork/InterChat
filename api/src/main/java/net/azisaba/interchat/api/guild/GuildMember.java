@@ -1,11 +1,13 @@
 package net.azisaba.interchat.api.guild;
 
+import net.azisaba.interchat.api.InterChatProvider;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class GuildMember {
     private final long guildId;
@@ -43,5 +45,10 @@ public final class GuildMember {
     @Contract(pure = true)
     public GuildRole role() {
         return role;
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<Guild> getGuild() {
+        return InterChatProvider.get().getGuildManager().fetchGuildById(guildId);
     }
 }

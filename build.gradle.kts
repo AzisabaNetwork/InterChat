@@ -60,6 +60,10 @@ allprojects {
     }
 
     tasks {
+        compileJava {
+            options.encoding = "UTF-8"
+        }
+
         test {
             useJUnitPlatform()
         }

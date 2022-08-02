@@ -14,6 +14,7 @@ import net.azisaba.interchat.api.network.Side;
 import net.azisaba.interchat.api.text.Messages;
 import net.azisaba.interchat.api.util.MapEx;
 import net.azisaba.interchat.api.util.MoreObjects;
+import net.azisaba.interchat.velocity.command.GuildAdminCommand;
 import net.azisaba.interchat.velocity.command.GuildCommand;
 import net.azisaba.interchat.velocity.database.DatabaseConfig;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
@@ -84,6 +85,7 @@ public class VelocityPlugin {
     public void onProxyInitialization(ProxyInitializeEvent e) {
         server.getEventManager().register(this, new JoinListener());
         server.getCommandManager().register(new GuildCommand().createCommand());
+        server.getCommandManager().register(new GuildAdminCommand().createCommand());
     }
 
     @Subscribe

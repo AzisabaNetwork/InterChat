@@ -1,10 +1,15 @@
 package net.azisaba.interchat.api.guild;
 
+import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.user.User;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public final class Guild {
     private final long id;
@@ -61,5 +66,20 @@ public final class Guild {
     @Contract(pure = true)
     public boolean deleted() {
         return deleted;
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<List<GuildMember>> getMembers() {
+        return InterChatProvider.get().getGuildManager().getMembers(this);
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<GuildMember> getMember(@NotNull UUID uuid) {
+        return InterChatProvider.get().getGuildManager().getMember(this, uuid);
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<GuildMember> getMember(@NotNull User user) {
+        return InterChatProvider.get().getGuildManager().getMember(this, user);
     }
 }

@@ -65,3 +65,11 @@ allprojects {
         }
     }
 }
+
+subprojects {
+    tasks {
+        shadowJar {
+            archiveFileName.set("${this@subprojects.parent!!.name}-${this@subprojects.name}-${this@subprojects.version}.jar")
+        }
+    }
+}

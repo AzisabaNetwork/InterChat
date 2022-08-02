@@ -1,0 +1,8 @@
+guild.roles.owner: "オーナー"
+guild.roles.moderator: "モデレーター"
+guild.roles.member: "メンバー"
+
+command.guild.not_selected: "/%s select <ギルド名>を実行してギルドを選択するか、ギルドに参加する必要があります。"
+command.guild.create.already_exists: "指定された名前のギルドはすでに存在します。"
+command.guild.create.fail: "ギルドの作成に失敗しました。"
+command.guild.create.success: "ギルドを作成しました。"

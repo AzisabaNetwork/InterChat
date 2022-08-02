@@ -1,0 +1,8 @@
+guild.roles.owner: "Owner"
+guild.roles.moderator: "Moderator"
+guild.roles.member: "Member"
+
+command.guild.not_selected: "You must select a guild using the /%s select <guild name> command or you need to join a guild."
+command.guild.create.already_exists: "The guild with the specified name already exists."
+command.guild.create.fail: "Failed to create the guild."
+command.guild.create.success: "Created the guild."

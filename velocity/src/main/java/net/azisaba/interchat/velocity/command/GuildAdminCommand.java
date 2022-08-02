@@ -8,6 +8,9 @@ public class GuildAdminCommand extends AbstractCommand {
     @Override
     protected @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
         return literal("guildadmin")
-                .requires(source -> source.hasPermission("interchat.guildadmin"));
+                .requires(source -> source.hasPermission("interchat.guildadmin"))
+                .then(literal("guild")
+
+                );
     }
 }

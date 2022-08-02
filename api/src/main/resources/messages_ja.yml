@@ -11,3 +11,6 @@ command.guild.format.not_moderator: "formatを変更する権限がありませ�
 command.guild.format.invalid_format: "formatには%%msgと%%usernameを含める必要があります。"
 command.guild.format.error: "ギルドチャットのformatの変更に失敗しました。"
 command.guild.format.success: "ギルドチャットのformatを変更しました。"
+command.guild.delete.not_owner: "ギルドを削除する権限がありません。"
+command.guild.delete.success: "ギルドを削除しました。"
+command.guild.delete.error: "ギルドの削除に失敗しました。"

@@ -4,7 +4,7 @@ import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.network.ProxyPacketListener;
-import net.azisaba.interchat.api.network.protocol.ProxyboundGuildMessagePacket;
+import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.AsyncUtil;
@@ -24,7 +24,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
     }
 
     @Override
-    public void handleGuildMessage(@NotNull ProxyboundGuildMessagePacket packet) {
+    public void handleGuildMessage(@NotNull GuildMessagePacket packet) {
         GuildManager guildManager = plugin.getAPI().getGuildManager();
         CompletableFuture<Guild> guildFuture = guildManager.fetchGuildById(packet.guildId());
         CompletableFuture<User> userFuture = plugin.getAPI().getUserManager().fetchUser(packet.sender());

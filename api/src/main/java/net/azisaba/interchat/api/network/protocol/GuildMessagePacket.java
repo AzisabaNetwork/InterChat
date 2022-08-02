@@ -2,25 +2,25 @@ package net.azisaba.interchat.api.network.protocol;
 
 import io.netty.buffer.ByteBuf;
 import net.azisaba.interchat.api.network.Packet;
-import net.azisaba.interchat.api.network.ProxyPacketListener;
+import net.azisaba.interchat.api.network.PacketListener;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.UUID;
 
-public class ProxyboundGuildMessagePacket extends Packet<ProxyPacketListener> {
+public class GuildMessagePacket extends Packet<PacketListener> {
     private final long guildId;
     private final String server;
     private final UUID sender;
     private final String message;
 
-    public ProxyboundGuildMessagePacket(long guildId, @NotNull String server, @NotNull UUID sender, @NotNull String message) {
+    public GuildMessagePacket(long guildId, @NotNull String server, @NotNull UUID sender, @NotNull String message) {
         this.guildId = guildId;
         this.server = server;
         this.sender = sender;
         this.message = message;
     }
 
-    public ProxyboundGuildMessagePacket(@NotNull ByteBuf buf) {
+    public GuildMessagePacket(@NotNull ByteBuf buf) {
         this.guildId = buf.readLong();
         this.server = readString(buf);
         this.sender = readUUID(buf);
@@ -36,7 +36,7 @@ public class ProxyboundGuildMessagePacket extends Packet<ProxyPacketListener> {
     }
 
     @Override
-    public void handle(@NotNull ProxyPacketListener packetListener) {
+    public void handle(@NotNull PacketListener packetListener) {
         packetListener.handleGuildMessage(this);
     }
 

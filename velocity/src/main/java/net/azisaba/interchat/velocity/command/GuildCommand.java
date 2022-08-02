@@ -10,7 +10,8 @@ import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.guild.GuildRole;
 import net.azisaba.interchat.api.network.Protocol;
-import net.azisaba.interchat.api.network.protocol.ProxyboundGuildMessagePacket;
+import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
+import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.Functions;
@@ -43,12 +44,14 @@ public class GuildCommand extends AbstractCommand {
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
         return literal(COMMAND_NAME)
                 .requires(source -> source instanceof Player && source.hasPermission("interchat.guild"))
+                // everyone
                 .then(literal("create")
                         .requires(source -> source.hasPermission("interchat.guild.create"))
                         .then(argument("name", StringArgumentType.word())
                                 .executes(ctx -> executeCreate((Player) ctx.getSource(), StringArgumentType.getString(ctx, "name")))
                         )
                 )
+                // moderator+
                 .then(literal("format")
                         .requires(source -> source.hasPermission("interchat.guild.format"))
                         .then(argument("format", StringArgumentType.greedyString())
@@ -63,11 +66,17 @@ public class GuildCommand extends AbstractCommand {
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
                         )
                 )
+                // member
                 .then(literal("chat")
                         .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .then(argument("message", StringArgumentType.greedyString())
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
+                )
+                // owner
+                .then(literal("delete")
+                        .requires(source -> source.hasPermission("interchat.guild.delete"))
+                        .executes(ctx -> executeDelete((Player) ctx.getSource()))
                 );
     }
 
@@ -131,11 +140,8 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(Component.text(VMessages.format(player, "command.guild.format.invalid_format"), NamedTextColor.RED));
             return 0;
         }
-        long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().selectedGuild();
-        if (selectedGuild == -1) {
-            player.sendMessage(Component.text(VMessages.format(player, "command.guild.not_selected", COMMAND_NAME), NamedTextColor.RED));
-            return 0;
-        }
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
         GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
         if (GuildRole.MODERATOR.ordinal() < member.role().ordinal()) {
             // member must be at least moderator to change the format
@@ -158,17 +164,52 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeChat(@NotNull Player player, @NotNull String message) {
-        long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().selectedGuild();
-        if (selectedGuild == -1) {
-            player.sendMessage(Component.text(VMessages.format(player, "command.guild.not_selected", COMMAND_NAME), NamedTextColor.RED));
-            return 0;
-        }
-        ProxyboundGuildMessagePacket packet = new ProxyboundGuildMessagePacket(
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        GuildMessagePacket packet = new GuildMessagePacket(
                 selectedGuild,
                 player.getCurrentServer().orElseThrow(IllegalStateException::new).getServerInfo().getName(),
                 player.getUniqueId(),
                 message);
-        VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.P_GUILD_MESSAGE_PACKET.getName(), packet);
+        VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_MESSAGE_PACKET.getName(), packet);
         return 0;
+    }
+
+    private static int executeDelete(@NotNull Player player) {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (member.role() != GuildRole.OWNER) {
+            // member must be owner
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.delete.not_owner"), NamedTextColor.RED));
+            return 0;
+        }
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
+                stmt.setLong(1, selectedGuild);
+                stmt.executeUpdate();
+            });
+            DatabaseManager.get().submitLog(selectedGuild, player, "Deleted guild (soft)");
+            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
+                stmt.setLong(1, selectedGuild);
+                stmt.executeUpdate();
+            });
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.delete.success"), NamedTextColor.GREEN));
+            // notify others
+            GuildSoftDeletePacket packet = new GuildSoftDeletePacket(selectedGuild, player.getUniqueId());
+            VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_SOFT_DELETE_PACKET.getName(), packet);
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to delete guild " + selectedGuild, e);
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.delete.error"), NamedTextColor.RED));
+        }
+        return 0;
+    }
+
+    private static long ensureSelected(@NotNull Player player) {
+        long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().selectedGuild();
+        if (selectedGuild == -1) {
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.not_selected", COMMAND_NAME), NamedTextColor.RED));
+        }
+        return selectedGuild;
     }
 }

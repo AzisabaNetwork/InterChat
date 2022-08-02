@@ -1,7 +1,8 @@
 package net.azisaba.interchat.api.network;
 
 import io.netty.buffer.ByteBuf;
-import net.azisaba.interchat.api.network.protocol.ProxyboundGuildMessagePacket;
+import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
+import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -22,9 +23,9 @@ public final class Protocol {
 
     // Proxy -> Backend
 
-
-    // Backend / Proxy -> Proxy
-    public static final NamedPacket<ProxyPacketListener, ProxyboundGuildMessagePacket> P_GUILD_MESSAGE_PACKET = register("p_guild_message", ProxyboundGuildMessagePacket.class, ProxyboundGuildMessagePacket::new);
+    // Anywhere -> Anywhere
+    public static final NamedPacket<PacketListener, GuildMessagePacket> GUILD_MESSAGE_PACKET = register("guild_message", GuildMessagePacket.class, GuildMessagePacket::new);
+    public static final NamedPacket<PacketListener, GuildSoftDeletePacket> GUILD_SOFT_DELETE_PACKET = register("guild_soft_delete", GuildSoftDeletePacket.class, GuildSoftDeletePacket::new);
 
     @NotNull
     @Contract("_, _, _ -> new")

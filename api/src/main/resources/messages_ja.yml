@@ -1,7 +1,9 @@
 guild.roles.owner: "オーナー"
 guild.roles.moderator: "モデレーター"
 guild.roles.member: "メンバー"
+guild.soft_deleted: "%sがギルド(%s)を削除しました。"
 
+command.error.unknown_guild: "不明なギルド: %s"
 command.guild.not_selected: "/%s select <ギルド名>を実行してギルドを選択するか、ギルドに参加する必要があります。"
 command.guild.create.invalid_name: "この名前は使用できません。"
 command.guild.create.already_exists: "指定された名前のギルドはすでに存在します。"
@@ -14,3 +16,8 @@ command.guild.format.success: "ギルドチャットのformatを変更しまし�
 command.guild.delete.not_owner: "ギルドを削除する権限がありません。"
 command.guild.delete.success: "ギルドを削除しました。"
 command.guild.delete.error: "ギルドの削除に失敗しました。"
+command.guild.select.success: "ギルドを選択しました。"
+command.guild.select.error: "ギルドの選択に失敗しました。"
+
+command.guildadmin.guild.restore.success: "ギルドを復元しました。"
+command.guildadmin.guild.restore.error: "ギルドの復元に失敗しました。"

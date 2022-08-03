@@ -24,6 +24,7 @@ public class GuildSoftDeletePacket extends Packet<PacketListener> {
     @Override
     public void encode(@NotNull ByteBuf buf) {
         buf.writeLong(guildId);
+        writeUUID(buf, actor);
     }
 
     @Override

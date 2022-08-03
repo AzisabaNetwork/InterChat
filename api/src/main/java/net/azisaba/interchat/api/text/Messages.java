@@ -39,7 +39,7 @@ public final class Messages {
                 return null;
             }
             Map<Object, Object> map = YAML.load(in);
-            return MessageInstance.createSimple(Functions.memorize(s -> String.valueOf(map.get(s))));
+            return MessageInstance.createSimple(Functions.memoize(s -> String.valueOf(map.get(s))));
         }
     }
 

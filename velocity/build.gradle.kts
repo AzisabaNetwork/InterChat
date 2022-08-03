@@ -18,11 +18,11 @@ tasks {
     shadowJar {
         exclude("org/slf4j/**")
         exclude("com/google/gson/**")
-        exclude("org/json/**")
-        exclude("org/apache/commons/**")
         relocate("org.mariadb.jdbc", "net.azisaba.interchat.libs.org.mariadb.jdbc")
         relocate("com.zaxxer.hikari", "net.azisaba.interchat.libs.com.zaxxer.hikari")
         relocate("redis.clients.jedis", "net.azisaba.interchat.libs.redis.clients.jedis")
         relocate("org.yaml", "net.azisaba.interchat.libs.org.yaml")
+        relocate("org.json", "net.azisaba.interchat.libs.org.json")
+        relocate("org.apache.commons", "net.azisaba.interchat.libs.org.apache.commons")
     }
 }

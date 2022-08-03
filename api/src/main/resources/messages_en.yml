@@ -1,7 +1,9 @@
 guild.roles.owner: "Owner"
 guild.roles.moderator: "Moderator"
 guild.roles.member: "Member"
+guild.soft_deleted: "%s deleted the guild %s."
 
+command.error.unknown_guild: "Unknown guild: %s"
 command.guild.not_selected: "You must select a guild using the /%s select <guild name> command or you need to join a guild."
 command.guild.create.invalid_name: "This guild name is invalid."
 command.guild.create.already_exists: "The guild with the specified name already exists."
@@ -14,3 +16,8 @@ command.guild.format.success: "Changed the format of the guild chat."
 command.guild.delete.not_owner: "You do not have permission to delete this guild."
 command.guild.delete.success: "Deleted the guild."
 command.guild.delete.error: "Failed to delete the guild."
+command.guild.select.success: "Selected the guild."
+command.guild.select.error: "Failed to select the guild."
+
+command.guildadmin.guild.restore.success: "Restored the guild."
+command.guildadmin.guild.restore.error: "Failed to restore the guild."

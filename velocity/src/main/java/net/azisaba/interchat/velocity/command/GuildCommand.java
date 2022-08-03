@@ -16,6 +16,7 @@ import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.Functions;
 import net.azisaba.interchat.velocity.VelocityPlugin;
+import net.azisaba.interchat.velocity.command.argument.GuildArgumentType;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
@@ -36,7 +37,7 @@ public class GuildCommand extends AbstractCommand {
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     private static final String COMMAND_NAME = "guild_test";
     private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
-    private static final Function<String, User> SAMPLE_USERS = Functions.memorize(s ->
+    private static final Function<String, User> SAMPLE_USERS = Functions.memoize(s ->
             new User(new UUID(0, 0), s, -1, false)
     );
 
@@ -53,7 +54,7 @@ public class GuildCommand extends AbstractCommand {
                 )
                 // moderator+
                 .then(literal("format")
-                        .requires(source -> source.hasPermission("interchat.guild.format"))
+                        .requires(source -> source.hasPermission("interchat.guild.format")/* && hasRoleInSelectedGuild(source, GuildRole.MODERATOR)*/)
                         .then(argument("format", StringArgumentType.greedyString())
                                 .suggests((context, builder) -> {
                                     User sampleUser = SAMPLE_USERS.apply(((Player) context.getSource()).getUsername());
@@ -68,15 +69,23 @@ public class GuildCommand extends AbstractCommand {
                 )
                 // member
                 .then(literal("chat")
-                        .requires(source -> source.hasPermission("interchat.guild.chat"))
+                        .requires(source -> source.hasPermission("interchat.guild.chat")/* && hasSelectedGuild(source)*/)
                         .then(argument("message", StringArgumentType.greedyString())
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
                 )
                 // owner
                 .then(literal("delete")
-                        .requires(source -> source.hasPermission("interchat.guild.delete"))
+                        .requires(source -> source.hasPermission("interchat.guild.delete")/* && hasRoleInSelectedGuild(source, GuildRole.OWNER)*/)
                         .executes(ctx -> executeDelete((Player) ctx.getSource()))
+                )
+                // everyone
+                .then(literal("select")
+                        .requires(source -> source.hasPermission("interchat.guild.select"))
+                        .then(argument("guild", GuildArgumentType.guild())
+                                .suggests(suggestGuildsOfMember(false))
+                                .executes(ctx -> executeSelect((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false)))
+                        )
                 );
     }
 
@@ -201,6 +210,21 @@ public class GuildCommand extends AbstractCommand {
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to delete guild " + selectedGuild, e);
             player.sendMessage(Component.text(VMessages.format(player, "command.guild.delete.error"), NamedTextColor.RED));
+        }
+        return 0;
+    }
+
+    private static int executeSelect(@NotNull Player player, @NotNull Guild guild) {
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
+                stmt.setLong(1, guild.id());
+                stmt.setString(2, player.getUniqueId().toString());
+                stmt.executeUpdate();
+            });
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.select.success"), NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to select guild " + guild.id(), e);
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.select.error"), NamedTextColor.RED));
         }
         return 0;
     }

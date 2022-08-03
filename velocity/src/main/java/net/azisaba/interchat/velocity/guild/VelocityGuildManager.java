@@ -7,6 +7,7 @@ import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.ResultSetUtil;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
@@ -111,5 +112,29 @@ public final class VelocityGuildManager implements GuildManager {
     @Override
     public @NotNull CompletableFuture<GuildMember> getMember(@NotNull Guild guild, @NotNull User user) {
         return getMember(guild.id(), user.id());
+    }
+
+    @Contract(pure = true)
+    @Override
+    public @NotNull CompletableFuture<List<Guild>> getGuildsOf(@NotNull UUID uuid) {
+        CompletableFuture<List<Guild>> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                DatabaseManager.get().runPrepareStatement("SELECT `guilds`.* FROM `guild_members` LEFT JOIN `guilds` ON `guilds`.`id` = `guild_members`.`guild_id` WHERE `guild_members`.`uuid` = ?", stmt ->{
+                    stmt.setString(1, uuid.toString());
+                    ResultSet rs = stmt.executeQuery();
+                    List<Guild> members = ResultSetUtil.toList(rs, Guild::createByResultSet);
+                    future.complete(members);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<List<Guild>> getGuildsOf(@NotNull User user) {
+        return getGuildsOf(user.id());
     }
 }

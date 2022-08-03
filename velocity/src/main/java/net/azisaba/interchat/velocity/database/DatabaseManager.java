@@ -30,7 +30,7 @@ public final class DatabaseManager {
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guilds` (" +
                     "  `id` BIGINT NOT NULL AUTO_INCREMENT," +
                     "  `name` VARCHAR(255) NOT NULL UNIQUE," +
-                    "  `format` VARCHAR(255) NOT NULL DEFAULT '[%gname&r] %prefix%username%suffix: &r%msg'," +
+                    "  `format` VARCHAR(255) NOT NULL DEFAULT '&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg'," +
                     "  `capacity` INT NOT NULL DEFAULT 100," +
                     "  `deleted` TINYINT(1) NOT NULL DEFAULT 0," +
                     "  PRIMARY KEY (`id`)" +

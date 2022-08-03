@@ -28,4 +28,10 @@ public interface GuildManager {
 
     @NotNull
     CompletableFuture<GuildMember> getMember(@NotNull Guild guild, @NotNull User user);
+
+    @NotNull
+    CompletableFuture<List<Guild>> getGuildsOf(@NotNull UUID uuid);
+
+    @NotNull
+    CompletableFuture<List<Guild>> getGuildsOf(@NotNull User user);
 }

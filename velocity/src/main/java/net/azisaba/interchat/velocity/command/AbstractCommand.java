@@ -13,6 +13,10 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
+import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.guild.Guild;
+import net.azisaba.interchat.api.guild.GuildRole;
+import net.azisaba.interchat.api.util.Functions;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -20,8 +24,13 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
 import java.util.Locale;
+import java.util.NoSuchElementException;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.stream.Stream;
 
 public abstract class AbstractCommand {
@@ -51,12 +60,50 @@ public abstract class AbstractCommand {
 
     @Contract(pure = true)
     public static @NotNull SuggestionProvider<CommandSource> suggestPlayers() {
-        return (source, builder) -> suggest(VelocityPlugin.getProxyServer().getAllPlayers().stream().map(Player::getUsername), builder);
+        return (ctx, builder) -> suggest(VelocityPlugin.getProxyServer().getAllPlayers().stream().map(Player::getUsername), builder);
+    }
+
+    private static final Function<UUID, Boolean> HAS_SELECTED_GUILD = Functions.memoize(5000, uuid -> {
+        long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(uuid).join().selectedGuild();
+        return selectedGuild != -1;
+    });
+
+    public static boolean hasSelectedGuild(@NotNull CommandSource source) {
+        if (!(source instanceof Player player)) {
+            return false;
+        }
+        return HAS_SELECTED_GUILD.apply(player.getUniqueId());
+    }
+
+    private static final BiFunction<UUID, GuildRole, Boolean> HAS_ROLE_IN_SELECTED_GUILD = Functions.memoize(5000, (uuid, role) -> {
+        long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(uuid).join().selectedGuild();
+        if (selectedGuild == -1) {
+            return false;
+        }
+        try {
+            int userRole = InterChatProvider.get()
+                    .getGuildManager()
+                    .getMember(selectedGuild, uuid)
+                    .join()
+                    .role()
+                    .ordinal();
+            return userRole <= role.ordinal();
+        } catch (NoSuchElementException e) {
+            // shouldn't happen though
+            return false;
+        }
+    });
+
+    public static boolean hasRoleInSelectedGuild(@NotNull CommandSource source, @NotNull GuildRole role) {
+        if (!(source instanceof Player player)) {
+            return false;
+        }
+        return HAS_ROLE_IN_SELECTED_GUILD.apply(player.getUniqueId(), role);
     }
 
     @Contract(pure = true)
     public static @NotNull SuggestionProvider<CommandSource> suggestServers() {
-        return (source, builder) ->
+        return (ctx, builder) ->
                 suggest(
                         VelocityPlugin.getProxyServer()
                                 .getAllServers()
@@ -65,6 +112,27 @@ public abstract class AbstractCommand {
                                 .map(ServerInfo::getName),
                         builder
                 );
+    }
+
+    private static final Function<UUID, List<Guild>> SUGGESTED_GUILDS_OF_MEMBER = Functions.memoize(10000, uuid ->
+            InterChatProvider.get()
+                .getGuildManager()
+                .getGuildsOf(uuid)
+                .join()
+    );
+
+    @Contract(pure = true)
+    public static @NotNull SuggestionProvider<CommandSource> suggestGuildsOfMember(boolean includeDeleted) {
+        return (ctx, builder) -> {
+            UUID uuid = ((Player) ctx.getSource()).getUniqueId();
+            return suggest(
+                    SUGGESTED_GUILDS_OF_MEMBER.apply(uuid)
+                            .stream()
+                            .filter(guild -> includeDeleted || !guild.deleted())
+                            .map(Guild::name),
+                    builder
+            );
+        };
     }
 
     @NotNull

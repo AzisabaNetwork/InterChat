@@ -1,5 +1,6 @@
 package net.azisaba.interchat.velocity.database;
 
+import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import com.zaxxer.hikari.HikariDataSource;
 import net.azisaba.interchat.api.InterChatProvider;
@@ -16,6 +17,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.UUID;
 
 public final class DatabaseManager {
     private final @NotNull HikariDataSource dataSource;
@@ -130,6 +132,14 @@ public final class DatabaseManager {
 
     public void submitLog(long guildId, @NotNull Player player, @NotNull String description) {
         submitLog(guildId, player.getUniqueId().toString(), player.getUsername(), description);
+    }
+
+    public void submitLog(long guildId, @NotNull CommandSource source, @NotNull String description) {
+        if (source instanceof Player player) {
+            submitLog(guildId, player, description);
+        } else {
+            submitLog(guildId, new UUID(0, 0).toString(), "Console", description);
+        }
     }
 
     @NotNull

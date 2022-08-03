@@ -44,6 +44,7 @@ public class GuildAdminCommand extends AbstractCommand {
                 stmt.setLong(1, guild.id());
                 stmt.executeUpdate();
             });
+            DatabaseManager.get().submitLog(guild.id(), source, "Restored guild");
             source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.restore.success"), NamedTextColor.GREEN));
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to restore the guild {}", guild.id(), e);

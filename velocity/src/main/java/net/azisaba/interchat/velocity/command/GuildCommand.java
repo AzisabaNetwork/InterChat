@@ -28,12 +28,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Arrays;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
 public class GuildCommand extends AbstractCommand {
+    private static final List<String> BLOCKED_GUILD_NAMES =
+            Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave", "dontinviteme");
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     private static final String COMMAND_NAME = "guild_test";
     private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
@@ -90,7 +94,7 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeCreate(@NotNull Player player, @NotNull String name) {
-        if (!GUILD_NAME_PATTERN.matcher(name).matches()) {
+        if (!GUILD_NAME_PATTERN.matcher(name).matches() || BLOCKED_GUILD_NAMES.contains(name.toLowerCase())) {
             player.sendMessage(Component.text(VMessages.format(player, "command.guild.create.invalid_name"), NamedTextColor.RED));
             return 1;
         }

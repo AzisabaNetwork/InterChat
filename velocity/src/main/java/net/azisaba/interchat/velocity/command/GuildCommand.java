@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 public class GuildCommand extends AbstractCommand {
     private static final List<String> BLOCKED_GUILD_NAMES =
             Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave", "dontinviteme");
+    private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     private static final String COMMAND_NAME = "guild_test";
     private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
@@ -110,9 +111,10 @@ public class GuildCommand extends AbstractCommand {
             // create guild
             try (
                     Connection connection = db.getConnection();
-                    PreparedStatement stmt = connection.prepareStatement("INSERT INTO `guilds` (`name`) VALUES (?)", Statement.RETURN_GENERATED_KEYS)
+                    PreparedStatement stmt = connection.prepareStatement("INSERT INTO `guilds` (`name`, `format`) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)
             ) {
                 stmt.setString(1, name);
+                stmt.setString(2, DEFAULT_FORMAT);
                 if (stmt.executeUpdate() == 0) {
                     player.sendMessage(Component.text(VMessages.format(player, "command.guild.create.fail"), NamedTextColor.RED));
                     return 0;

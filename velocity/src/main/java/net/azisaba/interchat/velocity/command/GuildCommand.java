@@ -17,6 +17,8 @@ import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.Functions;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.command.argument.GuildArgumentType;
+import net.azisaba.interchat.velocity.command.argument.GuildMemberArgumentType;
+import net.azisaba.interchat.velocity.command.argument.GuildRoleArgumentType;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
@@ -59,7 +61,7 @@ public class GuildCommand extends AbstractCommand {
                 )
                 // moderator+
                 .then(literal("format")
-                        .requires(source -> source.hasPermission("interchat.guild.format")/* && hasRoleInSelectedGuild(source, GuildRole.MODERATOR)*/)
+                        .requires(source -> source.hasPermission("interchat.guild.format"))
                         .then(argument("format", StringArgumentType.greedyString())
                                 .suggests((context, builder) -> {
                                     User sampleUser = SAMPLE_USERS.apply(((Player) context.getSource()).getUsername());
@@ -74,14 +76,14 @@ public class GuildCommand extends AbstractCommand {
                 )
                 // member
                 .then(literal("chat")
-                        .requires(source -> source.hasPermission("interchat.guild.chat")/* && hasSelectedGuild(source)*/)
+                        .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .then(argument("message", StringArgumentType.greedyString())
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
                 )
                 // owner
                 .then(literal("delete")
-                        .requires(source -> source.hasPermission("interchat.guild.delete")/* && hasRoleInSelectedGuild(source, GuildRole.OWNER)*/)
+                        .requires(source -> source.hasPermission("interchat.guild.delete"))
                         .executes(ctx -> executeDelete((Player) ctx.getSource()))
                 )
                 // everyone
@@ -90,6 +92,23 @@ public class GuildCommand extends AbstractCommand {
                         .then(argument("guild", GuildArgumentType.guild())
                                 .suggests(suggestGuildsOfMember(false))
                                 .executes(ctx -> executeSelect((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false)))
+                        )
+                )
+                // owner
+                .then(literal("role")
+                        .requires(source -> source.hasPermission("interchat.guild.role"))
+                        .then(argument("player", GuildMemberArgumentType.guildMember())
+                                .suggests(suggestMembersOfGuild(GuildRole.OWNER))
+                                .then(argument("role", GuildRoleArgumentType.guildRole())
+                                        .suggests((ctx, builder) -> suggest(Arrays.stream(GuildRole.values()).map(Enum::name).map(String::toLowerCase), builder))
+                                        .executes(ctx ->
+                                                executeRole(
+                                                        (Player) ctx.getSource(),
+                                                        GuildMemberArgumentType.get(ctx, "player", GuildRole.OWNER),
+                                                        GuildRoleArgumentType.get(ctx, "role")
+                                                )
+                                        )
+                                )
                         )
                 );
     }
@@ -231,6 +250,30 @@ public class GuildCommand extends AbstractCommand {
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to select guild " + guild.id(), e);
             player.sendMessage(Component.text(VMessages.format(player, "command.guild.select.error"), NamedTextColor.RED));
+        }
+        return 0;
+    }
+
+    private static int executeRole(@NotNull Player player, @NotNull GuildMember member, @NotNull GuildRole role) {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (self.role() != GuildRole.OWNER) {
+            // member must be owner
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.delete.not_owner"), NamedTextColor.RED));
+            return 0;
+        }
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `guild_members` SET `role` = ? WHERE `guild_id` = ? AND `uuid` = ?", stmt -> {
+                stmt.setString(1, role.name());
+                stmt.setLong(2, selectedGuild);
+                stmt.setString(3, member.uuid().toString());
+                stmt.executeUpdate();
+            });
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.role.success"), NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to change role of " + member.uuid() + " in guild " + selectedGuild, e);
+            player.sendMessage(Component.text(VMessages.format(player, "command.guild.role.error"), NamedTextColor.RED));
         }
         return 0;
     }

@@ -15,6 +15,7 @@ import com.velocitypowered.api.proxy.server.RegisteredServer;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.guild.Guild;
+import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.guild.GuildRole;
 import net.azisaba.interchat.api.util.Functions;
 import net.azisaba.interchat.velocity.VelocityPlugin;
@@ -31,6 +32,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class AbstractCommand {
@@ -135,10 +137,53 @@ public abstract class AbstractCommand {
         };
     }
 
+    private static final Function<Long, List<GuildMember>> SUGGESTED_MEMBERS_OF_GUILD = Functions.memoize(10000, guildId ->
+            InterChatProvider.get()
+                    .getGuildManager()
+                    .getMembers(guildId)
+                    .join()
+    );
+
+    private static final Function<UUID, String> UUID_TO_USERNAME = Functions.memoize(1000 * 60 * 60, uuid ->
+            InterChatProvider.get()
+                    .getUserManager()
+                    .fetchUser(uuid)
+                    .join()
+                    .name()
+    );
+
+    @Contract(pure = true)
+    public static @NotNull SuggestionProvider<CommandSource> suggestMembersOfGuild(@Nullable GuildRole role) {
+        return (ctx, builder) -> {
+            if (role != null && !hasRoleInSelectedGuild(ctx.getSource(), role)) {
+                return Suggestions.empty();
+            }
+            UUID uuid = ((Player) ctx.getSource()).getUniqueId();
+            long guildId = InterChatProvider.get()
+                    .getUserManager()
+                    .fetchUser(uuid)
+                    .join()
+                    .selectedGuild();
+            if (guildId == -1) {
+                return Suggestions.empty();
+            }
+            return suggest(
+                    SUGGESTED_MEMBERS_OF_GUILD.apply(guildId)
+                            .parallelStream()
+                            .map(GuildMember::uuid)
+                            .map(UUID_TO_USERNAME),
+                    builder
+            );
+        };
+    }
+
     @NotNull
     public static CompletableFuture<Suggestions> suggest(@NotNull Stream<String> suggestions, @NotNull SuggestionsBuilder builder) {
         String input = builder.getRemaining().toLowerCase(Locale.ROOT);
-        suggestions.filter((suggestion) -> matchesSubStr(input, suggestion.toLowerCase(Locale.ROOT))).forEach(builder::suggest);
+        suggestions
+                .filter((suggestion) -> matchesSubStr(input, suggestion.toLowerCase(Locale.ROOT)))
+                .sequential()
+                .forEach(builder::suggest);
         return builder.buildFuture();
     }
 

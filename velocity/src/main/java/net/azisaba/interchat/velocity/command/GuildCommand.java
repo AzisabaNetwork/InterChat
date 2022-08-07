@@ -518,20 +518,23 @@ public class GuildCommand extends AbstractCommand {
         // fetch guild
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
-        long owners =
-                InterChatProvider.get()
-                        .getGuildManager()
-                        .fetchGuildById(selectedGuild)
-                        .join()
-                        .getMembers()
-                        .join()
-                        .stream()
-                        .filter(m -> m.role() == GuildRole.OWNER)
-                        .count();
-        if (owners == 1) {
-            // guild must have at least one owner
-            player.sendMessage(VMessages.formatComponent(player, "command.guild.role.not_enough_owners").color(NamedTextColor.RED));
-            return 0;
+        GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (self.role() == GuildRole.OWNER) {
+            long owners =
+                    InterChatProvider.get()
+                            .getGuildManager()
+                            .fetchGuildById(selectedGuild)
+                            .join()
+                            .getMembers()
+                            .join()
+                            .stream()
+                            .filter(m -> m.role() == GuildRole.OWNER)
+                            .count();
+            if (owners == 1) {
+                // guild must have at least one owner
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.role.not_enough_owners").color(NamedTextColor.RED));
+                return 0;
+            }
         }
         if (InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size() == 1) {
             // if there is only one member, delete the guild.
@@ -560,20 +563,22 @@ public class GuildCommand extends AbstractCommand {
     private static int executeKick(@NotNull Player player, @NotNull GuildMember member) {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
-        long owners =
-                InterChatProvider.get()
-                        .getGuildManager()
-                        .fetchGuildById(selectedGuild)
-                        .join()
-                        .getMembers()
-                        .join()
-                        .stream()
-                        .filter(m -> m.role() == GuildRole.OWNER)
-                        .count();
-        if (owners == 1) {
-            // guild must have at least one owner
-            player.sendMessage(VMessages.formatComponent(player, "command.guild.role.not_enough_owners").color(NamedTextColor.RED));
-            return 0;
+        if (member.role() == GuildRole.OWNER) {
+            long owners =
+                    InterChatProvider.get()
+                            .getGuildManager()
+                            .fetchGuildById(selectedGuild)
+                            .join()
+                            .getMembers()
+                            .join()
+                            .stream()
+                            .filter(m -> m.role() == GuildRole.OWNER)
+                            .count();
+            if (owners == 1) {
+                // guild must have at least one owner
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.role.not_enough_owners").color(NamedTextColor.RED));
+                return 0;
+            }
         }
         if (InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size() == 1) {
             // if there is only one member, delete the guild.

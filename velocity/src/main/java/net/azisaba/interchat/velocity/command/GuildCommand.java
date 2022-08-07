@@ -39,7 +39,8 @@ import java.util.regex.Pattern;
 
 public class GuildCommand extends AbstractCommand {
     private static final List<String> BLOCKED_GUILD_NAMES =
-            Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave", "dontinviteme");
+            Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
+                    "dontinviteme", "doinviteme");
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     private static final String COMMAND_NAME = "guild_test";
@@ -97,14 +98,14 @@ public class GuildCommand extends AbstractCommand {
                 // owner
                 .then(literal("role")
                         .requires(source -> source.hasPermission("interchat.guild.role"))
-                        .then(argument("player", GuildMemberArgumentType.guildMember())
+                        .then(argument("member", GuildMemberArgumentType.guildMember())
                                 .suggests(suggestMembersOfGuild(GuildRole.OWNER))
                                 .then(argument("role", GuildRoleArgumentType.guildRole())
                                         .suggests((ctx, builder) -> suggest(Arrays.stream(GuildRole.values()).map(Enum::name).map(String::toLowerCase), builder))
                                         .executes(ctx ->
                                                 executeRole(
                                                         (Player) ctx.getSource(),
-                                                        GuildMemberArgumentType.get(ctx, "player", GuildRole.OWNER),
+                                                        GuildMemberArgumentType.get(ctx, "member", GuildRole.OWNER),
                                                         GuildRoleArgumentType.get(ctx, "role")
                                                 )
                                         )

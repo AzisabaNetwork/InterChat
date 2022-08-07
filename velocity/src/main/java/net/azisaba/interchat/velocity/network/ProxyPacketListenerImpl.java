@@ -13,14 +13,17 @@ import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 public final class ProxyPacketListenerImpl implements ProxyPacketListener {
+    private static final Component separator = Component.text("----------------------------------------", NamedTextColor.YELLOW); // 40 -'s
     private final VelocityPlugin plugin;
 
+    @Contract(pure = true)
     public ProxyPacketListenerImpl(@NotNull VelocityPlugin plugin) {
         this.plugin = plugin;
     }
@@ -56,7 +59,6 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                 return;
             }
             List<GuildMember> members = guildManager.getMembers(guild).join();
-            Component separator = Component.text("----------------------------------------", NamedTextColor.YELLOW); // 40 -'s
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
                 Component component = Component.text(VMessages.format(player, "guild.soft_deleted", user.name(), guild.name()), NamedTextColor.GOLD);
                 player.sendMessage(separator);

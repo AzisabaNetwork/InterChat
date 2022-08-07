@@ -703,6 +703,7 @@ public class GuildCommand extends AbstractCommand {
         long selectedGuild = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().selectedGuild();
         if (selectedGuild == -1) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.not_selected", COMMAND_NAME).color(NamedTextColor.RED));
+            return -1;
         }
         try {
             InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();

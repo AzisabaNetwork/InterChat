@@ -30,6 +30,7 @@ import java.util.Locale;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -90,8 +91,7 @@ public abstract class AbstractCommand {
                     .role()
                     .ordinal();
             return userRole <= role.ordinal();
-        } catch (NoSuchElementException e) {
-            // shouldn't happen though
+        } catch (CompletionException e) {
             return false;
         }
     });

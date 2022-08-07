@@ -21,13 +21,17 @@ public final class VMessages {
         source.sendMessage(LEGACY_COMPONENT_SERIALIZER.deserialize(format(source, key, args)));
     }
 
-    public static String format(@NotNull CommandSource source, @NotNull String key, Object @NotNull ... args) {
+    public static @NotNull String format(@NotNull CommandSource source, @NotNull String key, Object @NotNull ... args) {
         Locale locale = Locale.ENGLISH;
         if (source instanceof Player) {
             locale = ((Player) source).getEffectiveLocale();
         }
         String rawMessage = Messages.getInstance(locale).get(key);
         return String.format(Locale.ROOT, rawMessage, args);
+    }
+
+    public static @NotNull Component formatComponent(@NotNull CommandSource source, @NotNull String key, Object @NotNull ... args) {
+        return fromLegacyText(format(source, key, args));
     }
 
     public static @NotNull Component fromLegacyText(@NotNull String text) {

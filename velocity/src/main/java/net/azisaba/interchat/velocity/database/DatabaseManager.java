@@ -43,11 +43,19 @@ public final class DatabaseManager {
                     "  `role` VARCHAR(64) NOT NULL DEFAULT 'MEMBER'," +
                     "  PRIMARY KEY (`guild_id`, `uuid`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_invites` (" +
+                    "  `guild_id` BIGINT NOT NULL," +
+                    "  `target` VARCHAR(36) NOT NULL," +
+                    "  `actor` VARCHAR(36) NOT NULL," +
+                    "  `expires_at` BIGINT NOT NULL," +
+                    "  PRIMARY KEY (`guild_id`, `target`)" +
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_logs` (" +
                     "  `id` BIGINT NOT NULL AUTO_INCREMENT," +
                     "  `guild_id` BIGINT NOT NULL," +
                     "  `actor` VARCHAR(36) NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000'," +
                     "  `actor_name` VARCHAR(36) NOT NULL," +
+                    "  `time` BIGINT NOT NULL," +
                     "  `description` TEXT NOT NULL," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
@@ -55,7 +63,8 @@ public final class DatabaseManager {
                     "  `id` VARCHAR(36) NOT NULL," +
                     "  `name` VARCHAR(36) NOT NULL," +
                     "  `selected_guild` BIGINT NOT NULL DEFAULT -1," +
-                    "  `accepting_invites` TINYINT(1) NOT NULL DEFAULT 0," +
+                    "  `focused_guild` BIGINT NOT NULL DEFAULT -1," + // able to chat to guild without command
+                    "  `accepting_invites` TINYINT(1) NOT NULL DEFAULT 1," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
         });
@@ -117,11 +126,12 @@ public final class DatabaseManager {
     public void submitLog(long guildId, @Nullable String actor, @NotNull String actorName, @NotNull String description) {
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
-                runPrepareStatement("INSERT INTO `guild_logs` (`guild_id`, `actor`, `actor_name`, `description`) VALUES (?, ?, ?, ?)", statement -> {
+                runPrepareStatement("INSERT INTO `guild_logs` (`guild_id`, `actor`, `actor_name`, `time`, `description`) VALUES (?, ?, ?, ?, ?)", statement -> {
                     statement.setLong(1, guildId);
                     statement.setString(2, actor);
                     statement.setString(3, actorName);
-                    statement.setString(4, description);
+                    statement.setLong(4, System.currentTimeMillis());
+                    statement.setString(5, description);
                     statement.executeUpdate();
                 });
             } catch (SQLException e) {

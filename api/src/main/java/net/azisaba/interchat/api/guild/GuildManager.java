@@ -30,8 +30,26 @@ public interface GuildManager {
     CompletableFuture<GuildMember> getMember(@NotNull Guild guild, @NotNull User user);
 
     @NotNull
+    CompletableFuture<Void> removeMember(long guildId, @NotNull UUID uuid);
+
+    @NotNull
+    CompletableFuture<Void> updateMemberRole(long guildId, @NotNull UUID uuid, @NotNull GuildRole role);
+
+    @NotNull
     CompletableFuture<List<Guild>> getGuildsOf(@NotNull UUID uuid);
 
     @NotNull
     CompletableFuture<List<Guild>> getGuildsOf(@NotNull User user);
+
+    @NotNull
+    CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid);
+
+    @NotNull
+    CompletableFuture<GuildInvite> getInvite(long guildId, @NotNull UUID uuid);
+
+    @NotNull
+    CompletableFuture<Void> deleteInvite(long guildId, @NotNull UUID uuid);
+
+    @NotNull
+    CompletableFuture<Void> deleteInvite(@NotNull GuildInvite invite);
 }

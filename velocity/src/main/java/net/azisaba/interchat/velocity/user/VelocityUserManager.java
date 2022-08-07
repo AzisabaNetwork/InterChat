@@ -8,10 +8,12 @@ import net.azisaba.interchat.velocity.database.DatabaseManager;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
+import java.util.Collection;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 public class VelocityUserManager implements UserManager {
     @Override
@@ -42,6 +44,26 @@ public class VelocityUserManager implements UserManager {
             try {
                 DatabaseManager.get().runPrepareStatement("SELECT * FROM `players` WHERE `name` = ?", stmt ->{
                     stmt.setString(1, username);
+                    ResultSet rs = stmt.executeQuery();
+                    future.complete(ResultSetUtil.toList(rs, User::createByResultSet));
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<List<User>> fetchUsers(@NotNull Collection<? extends UUID> uuids) {
+        CompletableFuture<List<User>> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                DatabaseManager.get().runPrepareStatement("SELECT * FROM `players` WHERE `id` IN (" + uuids.stream().map(u -> "?").collect(Collectors.joining(",")) + ")", stmt ->{
+                    int i = 0;
+                    for (UUID uuid : uuids) {
+                        stmt.setString(++i, uuid.toString());
+                    }
                     ResultSet rs = stmt.executeQuery();
                     future.complete(ResultSetUtil.toList(rs, User::createByResultSet));
                 });

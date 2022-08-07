@@ -3,8 +3,10 @@ package net.azisaba.interchat.api.util;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import org.jetbrains.annotations.UnknownNullability;
 
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 public final class MoreObjects {
     private MoreObjects() { throw new AssertionError(); }
@@ -23,5 +25,14 @@ public final class MoreObjects {
             return defaultValue;
         }
         return t;
+    }
+
+    @UnknownNullability
+    public static <T> T getIf(boolean expr, @NotNull Supplier<T> ifTrue, @NotNull Supplier<T> ifFalse) {
+        if (expr) {
+            return ifTrue.get();
+        } else {
+            return ifFalse.get();
+        }
     }
 }

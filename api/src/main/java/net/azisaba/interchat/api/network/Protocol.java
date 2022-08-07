@@ -1,6 +1,10 @@
 package net.azisaba.interchat.api.network;
 
 import io.netty.buffer.ByteBuf;
+import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
+import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
+import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
+import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
 import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
 import org.jetbrains.annotations.Contract;
@@ -24,8 +28,13 @@ public final class Protocol {
     // Proxy -> Backend
 
     // Anywhere -> Anywhere
-    public static final NamedPacket<PacketListener, GuildMessagePacket> GUILD_MESSAGE_PACKET = register("guild_message", GuildMessagePacket.class, GuildMessagePacket::new);
-    public static final NamedPacket<PacketListener, GuildSoftDeletePacket> GUILD_SOFT_DELETE_PACKET = register("guild_soft_delete", GuildSoftDeletePacket.class, GuildSoftDeletePacket::new);
+    // They should not be sent by API
+    public static final NamedPacket<PacketListener, GuildMessagePacket> GUILD_MESSAGE = register("guild_message", GuildMessagePacket.class, GuildMessagePacket::new);
+    public static final NamedPacket<PacketListener, GuildSoftDeletePacket> GUILD_SOFT_DELETE = register("guild_soft_delete", GuildSoftDeletePacket.class, GuildSoftDeletePacket::new);
+    public static final NamedPacket<PacketListener, GuildInvitePacket> GUILD_INVITE = register("guild_invite", GuildInvitePacket.class, GuildInvitePacket::new);
+    public static final NamedPacket<PacketListener, GuildInviteResultPacket> GUILD_INVITE_RESULT = register("guild_invite_result", GuildInviteResultPacket.class, GuildInviteResultPacket::new);
+    public static final NamedPacket<PacketListener, GuildLeavePacket> GUILD_LEAVE = register("guild_leave", GuildLeavePacket.class, GuildLeavePacket::new);
+    public static final NamedPacket<PacketListener, GuildKickPacket> GUILD_KICK = register("guild_kick", GuildKickPacket.class, GuildKickPacket::new);
 
     @NotNull
     @Contract("_, _, _ -> new")

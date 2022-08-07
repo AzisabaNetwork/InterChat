@@ -13,12 +13,15 @@ public final class User {
     private final String name;
     @Range(from = -1, to = Long.MAX_VALUE)
     private final long selectedGuild;
+    @Range(from = -1, to = Long.MAX_VALUE)
+    private final long focusedGuild;
     private final boolean acceptingInvites;
 
-    public User(@NotNull UUID id, @NotNull String name, long selectedGuild, boolean acceptingInvites) {
+    public User(@NotNull UUID id, @NotNull String name, long selectedGuild, long focusedGuild, boolean acceptingInvites) {
         this.id = id;
         this.name = name;
         this.selectedGuild = selectedGuild;
+        this.focusedGuild = focusedGuild;
         this.acceptingInvites = acceptingInvites;
     }
 
@@ -28,8 +31,9 @@ public final class User {
             UUID id = UUID.fromString(rs.getString("id"));
             String name = rs.getString("name");
             long selectedGuild = rs.getLong("selected_guild");
+            long focusedGuild = rs.getLong("focused_guild");
             boolean acceptingInvites = rs.getBoolean("accepting_invites");
-            return new User(id, name, selectedGuild, acceptingInvites);
+            return new User(id, name, selectedGuild, focusedGuild, acceptingInvites);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -51,6 +55,12 @@ public final class User {
     @Range(from = -1, to = Long.MAX_VALUE)
     public long selectedGuild() {
         return selectedGuild;
+    }
+
+    @Contract(pure = true)
+    @Range(from = -1, to = Long.MAX_VALUE)
+    public long focusedGuild() {
+        return focusedGuild;
     }
 
     @Contract(pure = true)

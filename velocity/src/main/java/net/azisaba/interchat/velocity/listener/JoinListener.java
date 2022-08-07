@@ -13,7 +13,7 @@ public final class JoinListener {
     public void onLogin(LoginEvent e) {
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
-                DatabaseManager.get().runPrepareStatement("INSERT INTO `players` (`id`, `name`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`)", stmt -> {
+                DatabaseManager.get().runPrepareStatement("INSERT INTO `players` (`id`, `name`, `accepting_invites`) VALUES (?, ?, 1) ON DUPLICATE KEY UPDATE `name` = VALUES(`name`)", stmt -> {
                     stmt.setString(1, e.getPlayer().getUniqueId().toString());
                     stmt.setString(2, e.getPlayer().getUsername());
                     stmt.execute();

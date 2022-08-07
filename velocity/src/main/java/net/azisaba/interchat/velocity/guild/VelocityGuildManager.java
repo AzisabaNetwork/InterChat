@@ -1,12 +1,15 @@
 package net.azisaba.interchat.velocity.guild;
 
+import net.azisaba.interchat.api.guild.GuildInvite;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildMember;
+import net.azisaba.interchat.api.guild.GuildRole;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.ResultSetUtil;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -114,6 +117,50 @@ public final class VelocityGuildManager implements GuildManager {
         return getMember(guild.id(), user.id());
     }
 
+    @Override
+    public @NotNull CompletableFuture<Void> removeMember(long guildId, @NotNull UUID uuid) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                DatabaseManager.get().runPrepareStatement("DELETE FROM `guild_members` WHERE `guild_id` = ? AND `uuid` = ? LIMIT 1", stmt ->{
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    stmt.executeUpdate();
+                    future.complete(null);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    /**
+     * Updates the guild member data. This also can be used to add a new member.
+     * @param guildId The guild id
+     * @param uuid The uuid of the player (member)
+     * @param role The role
+     * @return void future
+     */
+    @Override
+    public @NotNull CompletableFuture<Void> updateMemberRole(long guildId, @NotNull UUID uuid, @NotNull GuildRole role) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                DatabaseManager.get().runPrepareStatement("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `role` = VALUES(`role`)", stmt ->{
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    stmt.setString(3, role.name());
+                    stmt.executeUpdate();
+                    future.complete(null);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
     @Contract(pure = true)
     @Override
     public @NotNull CompletableFuture<List<Guild>> getGuildsOf(@NotNull UUID uuid) {
@@ -123,8 +170,8 @@ public final class VelocityGuildManager implements GuildManager {
                 DatabaseManager.get().runPrepareStatement("SELECT `guilds`.* FROM `guild_members` LEFT JOIN `guilds` ON `guilds`.`id` = `guild_members`.`guild_id` WHERE `guild_members`.`uuid` = ?", stmt ->{
                     stmt.setString(1, uuid.toString());
                     ResultSet rs = stmt.executeQuery();
-                    List<Guild> members = ResultSetUtil.toList(rs, Guild::createByResultSet);
-                    future.complete(members);
+                    List<Guild> guilds = ResultSetUtil.toList(rs, Guild::createByResultSet);
+                    future.complete(guilds);
                 });
             } catch (Throwable t) {
                 future.completeExceptionally(t);
@@ -136,5 +183,71 @@ public final class VelocityGuildManager implements GuildManager {
     @Override
     public @NotNull CompletableFuture<List<Guild>> getGuildsOf(@NotNull User user) {
         return getGuildsOf(user.id());
+    }
+
+    @Override
+    public @NotNull CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid) {
+        CompletableFuture<List<Guild>> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            @Language("SQL")
+            String query = "SELECT `guilds`.* FROM `guild_members` LEFT JOIN `guilds` ON `guilds`.`id` = `guild_members`.`guild_id` WHERE `guild_members`.`uuid` = ? AND `guild_members`.`role` = ?";
+            try {
+                DatabaseManager.get().runPrepareStatement(query, stmt ->{
+                    stmt.setString(1, uuid.toString());
+                    stmt.setString(2, GuildRole.OWNER.name());
+                    ResultSet rs = stmt.executeQuery();
+                    List<Guild> guilds = ResultSetUtil.toList(rs, Guild::createByResultSet);
+                    future.complete(guilds);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<GuildInvite> getInvite(long guildId, @NotNull UUID uuid) {
+        CompletableFuture<GuildInvite> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                DatabaseManager.get().runPrepareStatement("SELECT * FROM `guild_invites` WHERE `guild_id` = ? AND `target` = ?", stmt ->{
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    ResultSet rs = stmt.executeQuery();
+                    if (rs.next()) {
+                        future.complete(GuildInvite.createFromResultSet(rs));
+                    } else {
+                        future.completeExceptionally(new NoSuchElementException("No guild member found with guild id " + guildId + " and uuid " + uuid));
+                    }
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Void> deleteInvite(long guildId, @NotNull UUID uuid) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                DatabaseManager.get().runPrepareStatement("DELETE FROM `guild_invites` WHERE `guild_id` = ? AND `target` = ?", stmt ->{
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    stmt.executeUpdate();
+                    future.complete(null);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Void> deleteInvite(@NotNull GuildInvite invite) {
+        return deleteInvite(invite.guildId(), invite.target());
     }
 }

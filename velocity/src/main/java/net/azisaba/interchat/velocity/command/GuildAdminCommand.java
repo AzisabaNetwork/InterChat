@@ -15,6 +15,7 @@ import net.azisaba.interchat.velocity.command.argument.GuildArgumentType;
 import net.azisaba.interchat.velocity.command.argument.GuildRoleArgumentType;
 import net.azisaba.interchat.velocity.command.argument.UUIDArgumentType;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -30,6 +31,10 @@ public class GuildAdminCommand extends AbstractCommand {
     protected @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
         return literal("guildadmin")
                 .requires(source -> source.hasPermission("interchat.guildadmin"))
+                .then(literal("clear-cache")
+                        .requires(source -> source.hasPermission("interchat.guildadmin.clear-cache"))
+                        .executes(ctx -> executeClearCache(ctx.getSource()))
+                )
                 .then(literal("guild")
                         .requires(source -> source.hasPermission("interchat.guildadmin.guild"))
                         .then(argument("guild", GuildArgumentType.guild())
@@ -62,6 +67,12 @@ public class GuildAdminCommand extends AbstractCommand {
                 );
     }
 
+    private static int executeClearCache(@NotNull CommandSource source) {
+        ChatListener.clearCache();
+        source.sendMessage(Component.text("Cleared cache!", NamedTextColor.GREEN));
+        return 0;
+    }
+
     private static int executeGuildSoftDelete(@NotNull CommandSource source, @NotNull Guild guild) {
         try {
             DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
@@ -73,15 +84,15 @@ public class GuildAdminCommand extends AbstractCommand {
                 stmt.setLong(1, guild.id());
                 stmt.executeUpdate();
             });
-            source.sendMessage(Component.text(VMessages.format(source, "command.guild.delete.success"), NamedTextColor.GREEN));
+            source.sendMessage(VMessages.formatComponent(source, "command.guild.delete.success").color(NamedTextColor.GREEN));
             if (source instanceof Player player) {
                 // notify others
                 GuildSoftDeletePacket packet = new GuildSoftDeletePacket(guild.id(), player.getUniqueId());
-                VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_SOFT_DELETE_PACKET.getName(), packet);
+                VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_SOFT_DELETE.getName(), packet);
             }
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to delete guild " + guild.id(), e);
-            source.sendMessage(Component.text(VMessages.format(source, "command.guild.delete.error"), NamedTextColor.RED));
+            source.sendMessage(VMessages.formatComponent(source, "command.guild.delete.error").color(NamedTextColor.RED));
         }
         return 0;
     }
@@ -90,8 +101,8 @@ public class GuildAdminCommand extends AbstractCommand {
     private static int executeGuildHardDelete(@NotNull CommandSource source, @NotNull Guild guild, @Nullable Long hash) {
         long actualHash = Hashing.sha256().hashLong(guild.id()).asLong();
         if (hash == null || actualHash != hash) {
-            source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.hard_delete.confirm.line1"), NamedTextColor.RED));
-            source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.hard_delete.confirm.line2", "/guildadmin guild " + guild.name() + " hard-delete " + actualHash), NamedTextColor.RED));
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.confirm.line1", guild.name()).color(NamedTextColor.RED));
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.confirm.line2", "/guildadmin guild " + guild.name() + " hard-delete " + actualHash).color(NamedTextColor.RED));
         } else {
             try {
                 DatabaseManager.get().runPrepareStatement("DELETE FROM `guilds` WHERE `id` = ?", stmt -> {
@@ -107,10 +118,10 @@ public class GuildAdminCommand extends AbstractCommand {
                     stmt.executeUpdate();
                 });
                 DatabaseManager.get().submitLog(guild.id(), source, "Deleted guild (hard)");
-                source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.hard_delete.success"), NamedTextColor.GREEN));
+                source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.success").color(NamedTextColor.GREEN));
             } catch (SQLException e) {
                 Logger.getCurrentLogger().error("Failed to delete guild " + guild.id(), e);
-                source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.hard_delete.error"), NamedTextColor.RED));
+                source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.error").color(NamedTextColor.RED));
             }
         }
         return 0;
@@ -123,10 +134,10 @@ public class GuildAdminCommand extends AbstractCommand {
                 stmt.executeUpdate();
             });
             DatabaseManager.get().submitLog(guild.id(), source, "Restored guild");
-            source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.restore.success"), NamedTextColor.GREEN));
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.restore.success").color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to restore the guild {}", guild.id(), e);
-            source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.restore.error"), NamedTextColor.RED));
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.restore.error").color(NamedTextColor.RED));
         }
         return 0;
     }
@@ -140,10 +151,10 @@ public class GuildAdminCommand extends AbstractCommand {
                 stmt.executeUpdate();
             });
             DatabaseManager.get().submitLog(guild.id(), source, "Set role of " + uuid + " to " + role.name());
-            source.sendMessage(Component.text(VMessages.format(source, "command.guildadmin.guild.role.success", uuid.toString(), role.name()), NamedTextColor.GREEN));
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.role.success", uuid.toString(), role.name()).color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to set guild ({}) role of {} to {}", guild.id(), uuid, role, e);
-            source.sendMessage(Component.text(VMessages.format(source, "command.error.generic", e.getMessage()), NamedTextColor.RED));
+            source.sendMessage(VMessages.formatComponent(source, "command.error.generic", e.getMessage()).color(NamedTextColor.RED));
         }
         return 0;
     }

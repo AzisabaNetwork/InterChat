@@ -34,4 +34,8 @@ public final class NamedPacket<P extends PacketListener, T extends Packet<P>> {
     public T create(@NotNull ByteBuf buf) {
         return Objects.requireNonNull(packetConstructor.apply(buf), "packetConstructor returned null");
     }
+
+    public void send(@NotNull PubSubHandler pubSubHandler, @NotNull T packet) {
+        pubSubHandler.publish(name, packet);
+    }
 }

@@ -1,6 +1,7 @@
 package net.azisaba.interchat.api.guild;
 
 import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.user.User;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -48,7 +49,24 @@ public final class GuildMember {
     }
 
     @Contract(pure = true)
+    public @NotNull CompletableFuture<User> getUser() {
+        return InterChatProvider.get().getUserManager().fetchUser(uuid);
+    }
+
+    @Contract(pure = true)
     public @NotNull CompletableFuture<Guild> getGuild() {
         return InterChatProvider.get().getGuildManager().fetchGuildById(guildId);
+    }
+
+    public @NotNull CompletableFuture<Void> delete() {
+        return InterChatProvider.get().getGuildManager().removeMember(guildId, uuid);
+    }
+
+    public @NotNull CompletableFuture<Void> update(@NotNull GuildRole role) {
+        return InterChatProvider.get().getGuildManager().updateMemberRole(guildId, uuid, role);
+    }
+
+    public @NotNull CompletableFuture<Void> update() {
+        return InterChatProvider.get().getGuildManager().updateMemberRole(guildId, uuid, role);
     }
 }

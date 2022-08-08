@@ -479,6 +479,16 @@ public class GuildCommand extends AbstractCommand {
             // accepted
             new GuildMember(guild.id(), invite.target(), GuildRole.MEMBER).update().join();
             User actor = InterChatProvider.get().getUserManager().fetchUser(invite.actor()).join();
+            // set selected guild
+            try {
+                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
+                    stmt.setLong(1, guild.id());
+                    stmt.setString(2, invite.target().toString());
+                    stmt.executeUpdate();
+                });
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
             DatabaseManager.get().submitLog(guild.id(), player, "Accepted the invite from " + invite.actor() + " (" + actor.name() + ") and joined the guild");
         } else {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.accept_reject.rejected", guild.name()).color(NamedTextColor.GREEN));

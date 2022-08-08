@@ -117,6 +117,10 @@ public class GuildAdminCommand extends AbstractCommand {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });
+                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = -1 WHERE `focused_guild` = ?", stmt -> {
+                    stmt.setLong(1, guild.id());
+                    stmt.executeUpdate();
+                });
                 DatabaseManager.get().submitLog(guild.id(), source, "Deleted guild (hard)");
                 source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.success").color(NamedTextColor.GREEN));
             } catch (SQLException e) {

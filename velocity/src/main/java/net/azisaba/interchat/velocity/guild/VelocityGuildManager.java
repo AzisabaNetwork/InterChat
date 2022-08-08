@@ -1,25 +1,62 @@
 package net.azisaba.interchat.velocity.guild;
 
-import net.azisaba.interchat.api.guild.GuildInvite;
-import net.azisaba.interchat.api.guild.GuildManager;
+import com.velocitypowered.api.command.CommandSource;
+import com.velocitypowered.api.proxy.Player;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.guild.Guild;
+import net.azisaba.interchat.api.guild.GuildInvite;
+import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.guild.GuildRole;
+import net.azisaba.interchat.api.network.Protocol;
+import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.ResultSetUtil;
+import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import net.azisaba.interchat.velocity.listener.ChatListener;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public final class VelocityGuildManager implements GuildManager {
+    public static void markDeleted(@NotNull CommandSource source, long guildId) {
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
+                stmt.setLong(1, guildId);
+                stmt.executeUpdate();
+            });
+            DatabaseManager.get().submitLog(guildId, source, "Deleted guild (soft)");
+            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
+                stmt.setLong(1, guildId);
+                stmt.executeUpdate();
+            });
+            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = -1 WHERE `focused_guild` = ?", stmt -> {
+                stmt.setLong(1, guildId);
+                stmt.executeUpdate();
+            });
+            ChatListener.removeCacheWithGuildId(guildId);
+            // notify others
+            UUID uuid;
+            if (source instanceof Player) {
+                uuid = ((Player) source).getUniqueId();
+            } else {
+                uuid = new UUID(0, 0);
+            }
+            GuildSoftDeletePacket packet = new GuildSoftDeletePacket(guildId, uuid);
+            VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_SOFT_DELETE.getName(), packet);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
     @Override
     public @NotNull CompletableFuture<Guild> fetchGuildById(long id) {
         CompletableFuture<Guild> future = new CompletableFuture<>();

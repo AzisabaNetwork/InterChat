@@ -21,7 +21,6 @@ import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
 import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
 import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
-import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.Functions;
@@ -33,6 +32,7 @@ import net.azisaba.interchat.velocity.command.argument.GuildMemberArgumentType;
 import net.azisaba.interchat.velocity.command.argument.GuildRoleArgumentType;
 import net.azisaba.interchat.velocity.command.argument.UUIDArgumentType;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import net.azisaba.interchat.velocity.guild.VelocityGuildManager;
 import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
@@ -307,20 +307,9 @@ public class GuildCommand extends AbstractCommand {
             return 0;
         }
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
-                stmt.setLong(1, selectedGuild);
-                stmt.executeUpdate();
-            });
-            DatabaseManager.get().submitLog(selectedGuild, player, "Deleted guild (soft)");
-            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
-                stmt.setLong(1, selectedGuild);
-                stmt.executeUpdate();
-            });
+            VelocityGuildManager.markDeleted(player, selectedGuild);
             player.sendMessage(VMessages.formatComponent(player, "command.guild.delete.success").color(NamedTextColor.GREEN));
-            // notify others
-            GuildSoftDeletePacket packet = new GuildSoftDeletePacket(selectedGuild, player.getUniqueId());
-            VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_SOFT_DELETE.getName(), packet);
-        } catch (SQLException e) {
+        } catch (Exception e) {
             Logger.getCurrentLogger().error("Failed to delete guild " + selectedGuild, e);
             player.sendMessage(VMessages.formatComponent(player, "command.guild.delete.error").color(NamedTextColor.RED));
         }
@@ -549,15 +538,7 @@ public class GuildCommand extends AbstractCommand {
         }
         if (InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size() == 1) {
             // if there is only one member, delete the guild.
-            try {
-                DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
-                    stmt.setLong(1, selectedGuild);
-                    stmt.executeUpdate();
-                });
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-            DatabaseManager.get().submitLog(selectedGuild, player, "Deleted guild (soft), due to last member leaving");
+            VelocityGuildManager.markDeleted(player, selectedGuild);
         }
         // leave guild
         InterChatProvider.get().getGuildManager().removeMember(selectedGuild, player.getUniqueId()).join();
@@ -603,15 +584,7 @@ public class GuildCommand extends AbstractCommand {
         }
         if (InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size() == 1) {
             // if there is only one member, delete the guild.
-            try {
-                DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
-                    stmt.setLong(1, selectedGuild);
-                    stmt.executeUpdate();
-                });
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            }
-            DatabaseManager.get().submitLog(selectedGuild, player, "Deleted guild (soft), due to last member leaving");
+            VelocityGuildManager.markDeleted(player, selectedGuild);
         }
         // kick member
         InterChatProvider.get().getGuildManager().removeMember(selectedGuild, member.uuid()).join();

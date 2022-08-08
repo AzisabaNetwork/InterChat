@@ -14,6 +14,8 @@ import org.jetbrains.annotations.NotNull;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
@@ -35,6 +37,16 @@ public final class ChatListener {
         }
         CHAT_COOLDOWN.put(uuid, System.currentTimeMillis() + CHAT_COOLDOWN_TIME);
         return false;
+    }
+
+    public static void removeCacheWithGuildId(long guildId) {
+        List<UUID> toRemove = new ArrayList<>();
+        CACHE.forEach((uuid, entry) -> {
+            if (entry.getValue() == guildId) {
+                toRemove.add(uuid);
+            }
+        });
+        toRemove.forEach(CACHE::remove);
     }
 
     public static void removeCache(@NotNull UUID uuid) {

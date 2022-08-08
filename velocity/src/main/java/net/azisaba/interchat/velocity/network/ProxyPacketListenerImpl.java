@@ -19,6 +19,7 @@ import net.azisaba.interchat.api.util.AsyncUtil;
 import net.azisaba.interchat.api.util.MoreObjects;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.command.GuildCommand;
+import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
@@ -65,6 +66,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
 
     @Override
     public void handleGuildSoftDelete(@NotNull GuildSoftDeletePacket packet) {
+        ChatListener.removeCacheWithGuildId(packet.guildId());
         GuildManager guildManager = plugin.getAPI().getGuildManager();
         CompletableFuture<Guild> guildFuture = guildManager.fetchGuildById(packet.guildId());
         CompletableFuture<User> userFuture = plugin.getAPI().getUserManager().fetchUser(packet.actor());

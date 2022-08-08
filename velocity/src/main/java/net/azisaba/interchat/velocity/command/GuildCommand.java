@@ -572,8 +572,18 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeKick(@NotNull Player player, @NotNull GuildMember member) {
+        // "player" has moderator or higher permissions
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
+        GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (self.role() != GuildRole.OWNER) {
+            // owner can kick anyone, including other owners
+            // but moderator cannot kick other moderators and owners, they can only kick members
+            if (self.role().ordinal() >= member.role().ordinal()) {
+                player.sendMessage(VMessages.formatComponent(player, "command.error.permission"));
+                return 0;
+            }
+        }
         if (member.role() == GuildRole.OWNER) {
             long owners =
                     InterChatProvider.get()

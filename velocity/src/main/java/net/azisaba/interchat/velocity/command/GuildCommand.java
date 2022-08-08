@@ -655,7 +655,12 @@ public class GuildCommand extends AbstractCommand {
                 stmt.setLong(1, selectedGuild);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
-                    return rs.getInt(1) / 10 + 1;
+                    int count = rs.getInt(1);
+                    if (count % 10 == 0) {
+                        return count / 10;
+                    } else {
+                        return count / 10 + 1;
+                    }
                 } else {
                     return 1;
                 }

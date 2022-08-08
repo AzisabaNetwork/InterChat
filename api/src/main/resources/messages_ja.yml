@@ -67,3 +67,5 @@ command.guildadmin.guild.hard_delete.error: "ギルドの削除に失敗しま�
 command.guildadmin.guild.restore.success: "ギルドを復元しました。"
 command.guildadmin.guild.restore.error: "ギルドの復元に失敗しました。"
 command.guildadmin.guild.role.success: "%sのロールを%sに設定しました。"
+command.guildadmin.guild.rename.duplicate: "指定されたギルド名はすでに使用されています。"
+command.guildadmin.guild.rename.success: "ギルド名を%sに変更しました。"

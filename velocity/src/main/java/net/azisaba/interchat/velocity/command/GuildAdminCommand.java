@@ -2,9 +2,11 @@ package net.azisaba.interchat.velocity.command;
 
 import com.google.common.hash.Hashing;
 import com.mojang.brigadier.arguments.LongArgumentType;
+import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
+import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildRole;
@@ -25,6 +27,7 @@ import org.jetbrains.annotations.Nullable;
 import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 
 public class GuildAdminCommand extends AbstractCommand {
     @Override
@@ -61,6 +64,12 @@ public class GuildAdminCommand extends AbstractCommand {
                                                         .suggests((ctx, builder) -> suggest(Arrays.stream(GuildRole.values()).map(Enum::name).map(String::toLowerCase), builder))
                                                         .executes(ctx -> executeGuildRole(ctx.getSource(), GuildArgumentType.get(ctx, "guild", false), UUIDArgumentType.get(ctx, "uuid"), GuildRoleArgumentType.get(ctx, "role")))
                                                 )
+                                        )
+                                )
+                                .then(literal("rename")
+                                        .requires(source -> source.hasPermission("interchat.guildadmin.guild.rename"))
+                                        .then(argument("name", StringArgumentType.string())
+                                                .executes(ctx -> executeGuildRename(ctx.getSource(), GuildArgumentType.get(ctx, "guild", false), StringArgumentType.getString(ctx, "name")))
                                         )
                                 )
                         )
@@ -158,6 +167,27 @@ public class GuildAdminCommand extends AbstractCommand {
             source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.role.success", uuid.toString(), role.name()).color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to set guild ({}) role of {} to {}", guild.id(), uuid, role, e);
+            source.sendMessage(VMessages.formatComponent(source, "command.error.generic", e.getMessage()).color(NamedTextColor.RED));
+        }
+        return 0;
+    }
+
+    private static int executeGuildRename(@NotNull CommandSource source, @NotNull Guild guild, @NotNull String newName) {
+        try {
+            InterChatProvider.get().getGuildManager().fetchGuildByName(newName).join();
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.rename.duplicate", newName).color(NamedTextColor.RED));
+            return 0;
+        } catch (CompletionException ignored) {}
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `name` = ? WHERE `id` = ?", stmt -> {
+                stmt.setString(1, newName);
+                stmt.setLong(2, guild.id());
+                stmt.executeUpdate();
+            });
+            DatabaseManager.get().submitLog(guild.id(), source, "Renamed guild to " + newName);
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.rename.success", newName).color(NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to rename guild {} to {}", guild.id(), newName, e);
             source.sendMessage(VMessages.formatComponent(source, "command.error.generic", e.getMessage()).color(NamedTextColor.RED));
         }
         return 0;

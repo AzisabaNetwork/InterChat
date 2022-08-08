@@ -1,5 +1,6 @@
 package net.azisaba.interchat.velocity.listener;
 
+import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
@@ -117,6 +118,11 @@ public final class ChatListener {
         } catch (CompletionException ex) {
             removeCache(e.getPlayer().getUniqueId()); // update cache next time
             return; // not in guild
+        }
+        if (message.startsWith("!")) {
+            // if the message starts with !, send to the backend without the first !
+            e.setResult(PlayerChatEvent.ChatResult.message(message.substring(1)));
+            return;
         }
         e.setResult(PlayerChatEvent.ChatResult.denied());
         GuildMessagePacket packet = new GuildMessagePacket(

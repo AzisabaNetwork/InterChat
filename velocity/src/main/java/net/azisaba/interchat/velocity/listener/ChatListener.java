@@ -101,8 +101,12 @@ public final class ChatListener {
         removeCache(e.getPlayer().getUniqueId());
     }
 
-    @Subscribe
+    @Subscribe(order = PostOrder.LATE)
     public void onPlayerChat(PlayerChatEvent e) {
+        if (!e.getResult().isAllowed()) {
+            // not allowed to chat due to other plugins
+            return;
+        }
         String message = e.getMessage();
         if (message.startsWith("/")) return; // don't process commands
         long focusedGuildId = getFocusedGuildId(e.getPlayer().getUniqueId());

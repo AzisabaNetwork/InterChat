@@ -5,6 +5,7 @@ import com.velocitypowered.api.proxy.Player;
 import net.azisaba.interchat.api.text.Messages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
@@ -16,6 +17,7 @@ public final class VMessages {
                     .extractUrls()
                     .hexColors()
                     .build();
+    private static final PlainTextComponentSerializer PLAIN_TEXT_COMPONENT_SERIALIZER = PlainTextComponentSerializer.plainText();
 
     public static void sendFormatted(@NotNull CommandSource source, @NotNull String key, Object @NotNull ... args) {
         source.sendMessage(LEGACY_COMPONENT_SERIALIZER.deserialize(format(source, key, args)));
@@ -36,5 +38,9 @@ public final class VMessages {
 
     public static @NotNull Component fromLegacyText(@NotNull String text) {
         return LEGACY_COMPONENT_SERIALIZER.deserialize(text);
+    }
+
+    public static @NotNull String toPlainText(@NotNull Component component) {
+        return PLAIN_TEXT_COMPONENT_SERIALIZER.serialize(component);
     }
 }

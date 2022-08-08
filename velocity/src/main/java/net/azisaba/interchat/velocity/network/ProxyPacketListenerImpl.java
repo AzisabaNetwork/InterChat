@@ -1,5 +1,6 @@
 package net.azisaba.interchat.velocity.network;
 
+import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildInviteResult;
 import net.azisaba.interchat.api.guild.GuildManager;
@@ -57,6 +58,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                     user,
                     packet.message());
             Component formattedComponent = VMessages.fromLegacyText(formattedText);
+            Logger.getCurrentLogger().info("[Guild Chat - {}] {} : {}", user.name(), VMessages.toPlainText(formattedComponent));
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> player.sendMessage(formattedComponent)));
         });
     }

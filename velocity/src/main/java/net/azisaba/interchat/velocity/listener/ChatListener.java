@@ -4,11 +4,16 @@ import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
+import com.velocitypowered.api.network.ProtocolVersion;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
 import net.azisaba.interchat.velocity.VelocityPlugin;
+import net.azisaba.interchat.velocity.command.GuildCommand;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import net.azisaba.interchat.velocity.text.VMessages;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.NotNull;
 
@@ -111,6 +116,15 @@ public final class ChatListener {
         if (message.startsWith("/")) return; // don't process commands
         long focusedGuildId = getFocusedGuildId(e.getPlayer().getUniqueId());
         if (focusedGuildId == -1) return; // no focused guild
+        if (e.getPlayer().getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal()) {
+            // See comments in body of GuildCommand#executeSetFocusedGuild
+            e.setResult(PlayerChatEvent.ChatResult.denied());
+            e.getPlayer().disconnect(VMessages.formatComponent(e.getPlayer(), "generic.1_19_1_not_supported")
+                    .color(NamedTextColor.RED)
+                    .append(Component.newline())
+                    .append(VMessages.formatComponent(e.getPlayer(), "guild.focus.kick_message", GuildCommand.COMMAND_NAME).color(NamedTextColor.RED)));
+            return;
+        }
         // check cooldown before executing query
         if (checkChatCooldown(e.getPlayer().getUniqueId())) {
             // silently discard message; cooldown is very short anyway

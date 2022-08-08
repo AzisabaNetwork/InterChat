@@ -1,6 +1,7 @@
 generic.accept: "Accept"
 generic.reject: "Reject"
 generic.hover.click_to_copy: "Click to copy"
+generic.1_19_1_not_supported: "Minecraft 1.19.1+ does not support this action."
 
 guild.roles.owner: "Owner"
 guild.roles.moderator: "Moderator"
@@ -12,6 +13,7 @@ guild.joined: "&b%s &6joined the guild &b%s&6."
 guild.left: "&b%s &6left the guild &b%s&6."
 guild.kicked: "&b%s &6kicked &b%s &6from the guild %s."
 guild.invite_rejected: "&b%s &6rejected the invite to the guild &b%s&6."
+guild.focus.kick_message: "You need to either turn off the guild chat using &b/%s chat &cor change the Minecraft version to older than 1.19.1 to be able to chat."
 
 command.error.generic: "An error occurred: %s"
 command.error.permission: "You do not have permission to do this."

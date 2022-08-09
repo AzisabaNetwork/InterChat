@@ -41,6 +41,7 @@ import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
 import java.sql.Connection;
@@ -185,7 +186,11 @@ public class GuildCommand extends AbstractCommand {
                 // member
                 .then(literal("info")
                         .requires(source -> source.hasPermission("interchat.guild.info"))
-                        .executes(ctx -> executeInfo((Player) ctx.getSource()))
+                        .executes(ctx -> executeInfo((Player) ctx.getSource(), null))
+                        .then(argument("guild", GuildArgumentType.guild())
+                                .suggests(suggestGuildsOfMember(false))
+                                .executes(ctx -> executeInfo((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false)))
+                        )
                 )
                 // member
                 .then(literal("log")
@@ -599,10 +604,20 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
-    private static int executeInfo(@NotNull Player player) {
-        long selectedGuild = ensureSelected(player);
-        if (selectedGuild == -1) return 0;
-        Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
+    private static int executeInfo(@NotNull Player player, @Nullable Guild guild) {
+        if (guild == null) {
+            long selectedGuild = ensureSelected(player);
+            if (selectedGuild == -1) return 0;
+            guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
+        }
+        if (!player.hasPermission("interchat.info_any_guild")) {
+            try {
+                guild.getMember(player.getUniqueId()).join();
+            } catch (CompletionException e) {
+                player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", guild.name()).color(NamedTextColor.RED));
+                return 0;
+            }
+        }
         List<GuildMember> members = guild.getMembers().join();
         Map<UUID, User> users = new HashMap<>();
         InterChatProvider.get()

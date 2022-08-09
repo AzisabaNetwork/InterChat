@@ -686,20 +686,17 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeSetFocusedGuild(@NotNull Player player) {
-        if (player.getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal()) {
-            // 1.19.1+ does not support this feature for these reasons:
-            // - canceling the chat breaks the chain, and verification on the server side will fail, resulting in a kick
-            // - the message needs to be unsigned if we modify the chat message, but then the chain breaks
-            // also see https://github.com/PaperMC/Velocity/issues/804 for more details on why this doesn't work
-            player.sendMessage(VMessages.formatComponent(player, "generic.1_19_1_not_supported").color(NamedTextColor.RED));
-            return 0;
-        }
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
         Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
         User user = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join();
         try {
-            if (user.focusedGuild() == selectedGuild) {
+            if (user.focusedGuild() == selectedGuild || player.getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal()) {
+                // 1.19.1+ does not support this feature for these reasons:
+                // - canceling the chat breaks the chain, and verification on the server side will fail, resulting in a kick
+                // - the message needs to be unsigned if we modify the chat message, but then the chain breaks
+                // also see https://github.com/PaperMC/Velocity/issues/804 for more details on why this doesn't work
+
                 // remove focused guild
                 DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {
                     stmt.setString(1, player.getUniqueId().toString());

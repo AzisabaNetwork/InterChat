@@ -223,11 +223,14 @@ public final class VelocityGuildManager implements GuildManager {
     }
 
     @Override
-    public @NotNull CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid) {
+    public @NotNull CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid, boolean includeDeleted) {
         CompletableFuture<List<Guild>> future = new CompletableFuture<>();
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             @Language("SQL")
             String query = "SELECT `guilds`.* FROM `guild_members` LEFT JOIN `guilds` ON `guilds`.`id` = `guild_members`.`guild_id` WHERE `guild_members`.`uuid` = ? AND `guild_members`.`role` = ?";
+            if (!includeDeleted) {
+                query += " AND `guilds`.`deleted` = 0";
+            }
             try {
                 DatabaseManager.get().runPrepareStatement(query, stmt ->{
                     stmt.setString(1, uuid.toString());

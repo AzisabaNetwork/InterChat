@@ -25,6 +25,8 @@ import java.util.function.Function;
 public final class Protocol {
     private static final Map<String, NamedPacket<?, ?>> PACKET_MAP = new ConcurrentHashMap<>();
 
+    // Backend -> Proxy
+
     // Proxy -> Backend
 
     // Anywhere -> Anywhere

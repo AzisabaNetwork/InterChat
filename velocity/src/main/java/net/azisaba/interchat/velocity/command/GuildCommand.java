@@ -208,7 +208,7 @@ public class GuildCommand extends AbstractCommand {
             return 0;
         }
         if (!player.hasPermission("interchat.create_more_than_one_guild") &&
-                !InterChatProvider.get().getGuildManager().getOwnedGuilds(player.getUniqueId()).join().isEmpty()) {
+                !InterChatProvider.get().getGuildManager().getOwnedGuilds(player.getUniqueId(), false).join().isEmpty()) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.create.owned_guild").color(NamedTextColor.RED));
             return 0;
         }

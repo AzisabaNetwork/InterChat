@@ -42,7 +42,12 @@ public interface GuildManager {
     CompletableFuture<List<Guild>> getGuildsOf(@NotNull User user);
 
     @NotNull
-    CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid);
+    default CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid) {
+        return getOwnedGuilds(uuid, true);
+    }
+
+    @NotNull
+    CompletableFuture<List<Guild>> getOwnedGuilds(@NotNull UUID uuid, boolean includeDeleted);
 
     @NotNull
     CompletableFuture<GuildInvite> getInvite(long guildId, @NotNull UUID uuid);

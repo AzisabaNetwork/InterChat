@@ -8,6 +8,7 @@ import com.velocitypowered.api.network.ProtocolVersion;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
+import net.azisaba.interchat.api.text.KanaTranslator;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.command.GuildCommand;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
@@ -143,11 +144,23 @@ public final class ChatListener {
             return;
         }
         e.setResult(PlayerChatEvent.ChatResult.denied());
+
+        String transliteratedMessage = null;
+        if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
+            message = message.substring(1);
+        } else {
+            boolean translateKana = InterChatProvider.get().getUserManager().fetchUser(e.getPlayer().getUniqueId()).join().translateKana();
+            if (translateKana) {
+                transliteratedMessage = KanaTranslator.translateSync(message);
+            }
+        }
+
         GuildMessagePacket packet = new GuildMessagePacket(
                 focusedGuildId,
                 e.getPlayer().getCurrentServer().orElseThrow(IllegalStateException::new).getServerInfo().getName(),
                 e.getPlayer().getUniqueId(),
-                message);
+                message,
+                transliteratedMessage);
         VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_MESSAGE.getName(), packet);
     }
 }

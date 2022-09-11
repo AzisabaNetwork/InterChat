@@ -57,7 +57,8 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                     guild,
                     packet.server(),
                     user,
-                    packet.message());
+                    packet.message(),
+                    packet.transliteratedMessage());
             Component formattedComponent = VMessages.fromLegacyText(formattedText);
             Logger.getCurrentLogger().info("[Guild Chat - {}] {} : {}", guild.name(), user.name(), VMessages.toPlainText(formattedComponent));
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> player.sendMessage(formattedComponent)));

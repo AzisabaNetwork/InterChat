@@ -61,6 +61,8 @@ command.guild.log.title: "Guild logs &7(page &f%s&7/&f%s&7)"
 command.guild.log.format: "> &b#%s &8(&7%s ago&8) [&b%s&8]&7: "
 command.guild.focus.focused: "You are now chatting to guild %s. Type the same command again to revert this."
 command.guild.focus.unfocused: "You are no longer chatting to guild %s."
+command.guild.translate_kana.enabled: "Turned on the kana conversion."
+command.guild.translate_kana.disabled: "Turned off the kana conversion."
 
 command.guildadmin.guild.hard_delete.confirm.line1: "Are you sure want to delete the guild %s permanently?"
 command.guildadmin.guild.hard_delete.confirm.line2: "This action is cannot be undone. If you are sure, type: %s"

@@ -61,6 +61,8 @@ command.guild.log.title: "ギルドログ &7(&f%s&7/&f%s&7ページ)"
 command.guild.log.format: "> &b#%s &8(&7%s前&8) [&b%s&8]&7: "
 command.guild.focus.focused: "チャットの発言先を%sに設定しました。同じコマンドを打つことで元に戻すことができます。"
 command.guild.focus.unfocused: "チャットの発言先を元に戻しました。"
+command.guild.translate_kana.enabled: "かな変換をオンにしました。"
+command.guild.translate_kana.disabled: "かな変換をオフにしました。"
 
 command.guildadmin.guild.hard_delete.confirm.line1: "本当にギルド(%s)を完全に削除しますか？"
 command.guildadmin.guild.hard_delete.confirm.line2: "この操作は元に戻せません。実行する場合はこのコマンドを実行してください: %s"

@@ -22,6 +22,7 @@ import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
 import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
 import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
+import net.azisaba.interchat.api.text.KanaTranslator;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.util.Functions;
@@ -65,13 +66,13 @@ public class GuildCommand extends AbstractCommand {
     private static final List<String> BLOCKED_GUILD_NAMES =
             Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
                     "dontinviteme", "toggleinvites", "accept", "reject", "info");
-    private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg";
+    private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     public static final String COMMAND_NAME = "guild_test";
     private static final Map<UUID, Long> LAST_GUILD_INVITE = new ConcurrentHashMap<>();
     private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
     private static final Function<String, User> SAMPLE_USERS = Functions.memoize(s ->
-            new User(new UUID(0, 0), s, -1, -1, false)
+            new User(new UUID(0, 0), s, -1, -1, false, false)
     );
 
     @Override
@@ -94,7 +95,7 @@ public class GuildCommand extends AbstractCommand {
                                     String format = context.getLastChild()
                                             .getInput()
                                             .replaceFirst(COMMAND_NAME + " format ", "");
-                                    String formatted = "\u00a7r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "test");
+                                    String formatted = "\u00a7r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "tesuto", "テスト");
                                     return builder.suggest(formatted.replace('&', '\u00a7')).buildFuture();
                                 })
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
@@ -199,6 +200,31 @@ public class GuildCommand extends AbstractCommand {
                         .then(argument("page", IntegerArgumentType.integer(1, Integer.MAX_VALUE))
                                 .executes(ctx -> executeLog((Player) ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))
                         )
+                )
+                // everyone
+                .then(literal("jp-on")
+                        .requires(source -> source.hasPermission("interchat.guild.jp-on"))
+                        .executes(ctx -> executeToggleTranslateKana((Player) ctx.getSource(), true))
+                )
+                // everyone
+                .then(literal("jp-off")
+                        .requires(source -> source.hasPermission("interchat.guild.jp-off"))
+                        .executes(ctx -> executeToggleTranslateKana((Player) ctx.getSource(), false))
+                )
+
+                // handle special cases
+                .then(argument("guild", GuildArgumentType.guild())
+                        .executes(ctx -> executeSetFocusedGuild((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false).id()))
+                        .then(argument("message", StringArgumentType.greedyString())
+                                .requires(source -> source.hasPermission("interchat.guild.chat"))
+                                .executes(ctx ->
+                                        executeChat(
+                                                (Player) ctx.getSource(),
+                                                StringArgumentType.getString(ctx, "message"),
+                                                GuildArgumentType.get(ctx, "guild", false).id()
+                                        )
+                                )
+                        )
                 );
     }
 
@@ -294,11 +320,26 @@ public class GuildCommand extends AbstractCommand {
     private static int executeChat(@NotNull Player player, @NotNull String message) {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
+        return executeChat(player, message, selectedGuild);
+    }
+
+    private static int executeChat(@NotNull Player player, @NotNull String message, long selectedGuild) {
+        String transliteratedMessage = null;
+        if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
+            message = message.substring(1);
+        } else {
+            boolean translateKana = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().translateKana();
+            if (translateKana) {
+                transliteratedMessage = KanaTranslator.translateSync(message);
+            }
+        }
+
         GuildMessagePacket packet = new GuildMessagePacket(
                 selectedGuild,
                 player.getCurrentServer().orElseThrow(IllegalStateException::new).getServerInfo().getName(),
                 player.getUniqueId(),
-                message);
+                message,
+                transliteratedMessage);
         VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_MESSAGE.getName(), packet);
         return 0;
     }
@@ -688,6 +729,10 @@ public class GuildCommand extends AbstractCommand {
     private static int executeSetFocusedGuild(@NotNull Player player) {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
+        return executeSetFocusedGuild(player, selectedGuild);
+    }
+
+    private static int executeSetFocusedGuild(@NotNull Player player, long selectedGuild) {
         Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
         User user = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join();
         try {
@@ -713,6 +758,24 @@ public class GuildCommand extends AbstractCommand {
                 player.sendMessage(VMessages.formatComponent(player, "command.guild.focus.focused", guild.name()).color(NamedTextColor.GREEN));
             }
             ChatListener.removeCache(player.getUniqueId());
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
+    private static int executeToggleTranslateKana(@NotNull Player player, boolean flag) {
+        try {
+            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `translate_kana` = ? WHERE `id` = ?", stmt -> {
+                stmt.setBoolean(1, flag);
+                stmt.setString(2, player.getUniqueId().toString());
+                stmt.executeUpdate();
+            });
+            if (flag) {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.translate_kana.enabled").color(NamedTextColor.GREEN));
+            } else {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.translate_kana.disabled").color(NamedTextColor.GREEN));
+            }
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

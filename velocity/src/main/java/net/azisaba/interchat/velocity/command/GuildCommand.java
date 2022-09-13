@@ -324,6 +324,12 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeChat(@NotNull Player player, @NotNull String message, long selectedGuild) {
+        try {
+            InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        } catch (CompletionException e) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", selectedGuild).color(NamedTextColor.RED));
+            return 0;
+        }
         String transliteratedMessage = null;
         if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
             message = message.substring(1);
@@ -734,6 +740,12 @@ public class GuildCommand extends AbstractCommand {
 
     private static int executeSetFocusedGuild(@NotNull Player player, long selectedGuild) {
         Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
+        try {
+            guild.getMember(player.getUniqueId()).join();
+        } catch (CompletionException e) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", guild.name()).color(NamedTextColor.RED));
+            return 0;
+        }
         User user = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join();
         try {
             if (user.focusedGuild() == selectedGuild || player.getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal()) {

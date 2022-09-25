@@ -269,6 +269,31 @@ public class RomajiTextReader {
         add("xyu", "ゅ");
         add("xye", "ぇ");
         add("xyo", "ょ");
+        add("tha", "てゃ");
+        add("thi", "てぃ");
+        add("thu", "てゅ");
+        add("the", "てぇ");
+        add("tho", "てょ");
+        add("ttya", "っちゃ");
+        add("ttyi", "っちぃ");
+        add("ttyu", "っちゅ");
+        add("ttye", "っちぇ");
+        add("ttyo", "っちょ");
+        add("ccha", "っちゃ");
+        add("cchi", "っちぃ");
+        add("cchu", "っちゅ");
+        add("cche", "っちぇ");
+        add("ccho", "っちょ");
+        add("ssha", "っしゃ");
+        add("sshi", "っし");
+        add("sshu", "っしゅ");
+        add("sshe", "っしぇ");
+        add("ssho", "っしょ");
+        add("cya", "ちゃ");
+        add("cyi", "ちぃ");
+        add("cyu", "ちゅ");
+        add("cye", "ちぇ");
+        add("cyo", "ちょ");
         add("-", "ー");
         add("n", "ん"); // fallback
     }

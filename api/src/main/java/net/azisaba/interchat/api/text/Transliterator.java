@@ -12,12 +12,14 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
+import java.util.List;
 
 public class Transliterator {
     private static final String URL = "https://www.google.com/transliterate?langpair=ja-Hira|ja&text=";
 
     @NotNull
-    public static String transliterate(@NotNull String text) {
+    public static List<@NotNull String> transliterate(@NotNull String text) {
         HttpURLConnection conn = null;
 
         try {
@@ -44,14 +46,15 @@ public class Transliterator {
             }
         }
 
-        return text;
+        return Collections.singletonList(text);
     }
 
-    private static @NotNull String parseJson(String json) {
-        StringBuilder result = new StringBuilder();
+    private static @NotNull List<@NotNull String> parseJson(String json) {
+        List<String> list = new java.util.ArrayList<>();
         for (JsonElement response : new Gson().fromJson(json, JsonArray.class)) {
-            result.append(response.getAsJsonArray().get(1).getAsJsonArray().get(0).getAsString());
+            JsonArray suggestions = response.getAsJsonArray().get(1).getAsJsonArray();
+            suggestions.forEach(el -> list.add(el.getAsString()));
         }
-        return result.toString();
+        return list;
     }
 }

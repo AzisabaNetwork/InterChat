@@ -50,7 +50,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -73,6 +75,12 @@ public class GuildCommand extends AbstractCommand {
     private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
     private static final Function<String, User> SAMPLE_USERS = Functions.memoize(s ->
             new User(new UUID(0, 0), s, -1, -1, false, false)
+    );
+    private static final Function<UUID, User> ACTUAL_USER = Functions.memoize(1000 * 10, uuid ->
+            InterChatProvider.get().getUserManager().fetchUser(uuid).join()
+    );
+    private static final Function<UUID, Guild> ACTUAL_GUILD = Functions.memoize(1000 * 10, uuid ->
+            InterChatProvider.get().getGuildManager().fetchGuildById(ACTUAL_USER.apply(uuid).selectedGuild()).join()
     );
 
     @Override
@@ -106,6 +114,44 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .executes(ctx -> executeSetFocusedGuild((Player) ctx.getSource()))
                         .then(argument("message", StringArgumentType.greedyString())
+                                .suggests((context, builder) -> {
+                                    // preview and suggest
+                                    User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
+                                    Guild guild = ACTUAL_GUILD.apply(user.id());
+                                    String server = ((Player) context.getSource())
+                                            .getCurrentServer()
+                                            .orElseThrow(IllegalStateException::new)
+                                            .getServerInfo()
+                                            .getName();
+                                    String format = guild.format().replace("&r", "&r&f");
+                                    String message = builder.getRemaining();
+                                    String transliteratedEntire = null;
+                                    List<String> suggestions = Collections.emptyList();
+                                    if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
+                                        message = message.substring(1);
+                                    } else {
+                                        boolean translateKana = user.translateKana();
+                                        if (translateKana) {
+                                            suggestions = KanaTranslator.translateSync(message);
+                                            if (!suggestions.isEmpty()) {
+                                                transliteratedEntire = suggestions.get(0);
+                                            }
+                                            try {
+                                                suggestions = KanaTranslator.translateSync(message.substring(message.lastIndexOf(' ') + 1));
+                                            } catch (IndexOutOfBoundsException ignored) {}
+                                        }
+                                    }
+                                    String formatted = "\u00a7r" + MessageFormatter.format(format, guild, server, user, message, transliteratedEntire);
+                                    builder.suggest(formatted.replace('&', '\u00a7'));
+                                    if (!suggestions.isEmpty()) {
+                                        suggestions = new ArrayList<>(suggestions);
+                                        Collections.reverse(suggestions);
+                                        for (String suggestion : suggestions) {
+                                            builder.suggest(suggestion);
+                                        }
+                                    }
+                                    return builder.buildFuture();
+                                })
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
                 )
@@ -336,7 +382,7 @@ public class GuildCommand extends AbstractCommand {
         } else {
             boolean translateKana = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().translateKana();
             if (translateKana) {
-                transliteratedMessage = KanaTranslator.translateSync(message);
+                transliteratedMessage = KanaTranslator.translateSync(message).get(0);
             }
         }
 

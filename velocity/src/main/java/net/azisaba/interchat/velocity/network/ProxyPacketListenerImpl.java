@@ -48,7 +48,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
         CompletableFuture<Guild> guildFuture = guildManager.fetchGuildById(packet.guildId());
         CompletableFuture<User> userFuture = plugin.getAPI().getUserManager().fetchUser(packet.sender());
         AsyncUtil.collectAsync(guildFuture, userFuture, (guild, user) -> {
-            if (guild == null || user == null) {
+            if (guild == null || user == null || !guild.deleted()) {
                 return;
             }
             List<GuildMember> members = guildManager.getMembers(guild).join();

@@ -41,6 +41,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
@@ -67,7 +68,7 @@ import java.util.stream.Collectors;
 public class GuildCommand extends AbstractCommand {
     private static final List<String> BLOCKED_GUILD_NAMES =
             Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
-                    "dontinviteme", "toggleinvites", "accept", "reject", "info");
+                    "dontinviteme", "toggleinvites", "accept", "reject", "info", "linkdiscord");
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     public static final String COMMAND_NAME = "guild_test";
@@ -257,6 +258,14 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.jp-off"))
                         .executes(ctx -> executeToggleTranslateKana((Player) ctx.getSource(), false))
                 )
+                .then(literal("linkdiscord")
+                        .requires(source -> source.hasPermission("interchat.guild.linkdiscord"))
+                        .executes(ctx -> executeLinkDiscord((Player) ctx.getSource()))
+                )
+                .then(literal("unlinkdiscord")
+                        .requires(source -> source.hasPermission("interchat.guild.unlinkdiscord"))
+                        .executes(ctx -> executeUnlinkDiscord((Player) ctx.getSource()))
+                )
 
                 // handle special cases
                 .then(argument("guild", GuildArgumentType.guild())
@@ -382,7 +391,10 @@ public class GuildCommand extends AbstractCommand {
         } else {
             boolean translateKana = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().translateKana();
             if (translateKana) {
-                transliteratedMessage = KanaTranslator.translateSync(message).get(0);
+                List<String> suggestions = KanaTranslator.translateSync(message);
+                if (!suggestions.isEmpty()) {
+                    transliteratedMessage = suggestions.get(0);
+                }
             }
         }
 
@@ -834,6 +846,40 @@ public class GuildCommand extends AbstractCommand {
             } else {
                 player.sendMessage(VMessages.formatComponent(player, "command.guild.translate_kana.disabled").color(NamedTextColor.GREEN));
             }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
+    private static int executeLinkDiscord(@NotNull Player player) {
+        try {
+            String guildChatDiscordName = VelocityPlugin.getPlugin().getDatabaseConfig().guildChatDiscordName();
+            @Language("SQL")
+            String sql = "INSERT INTO `" + guildChatDiscordName + "`.`users` (`minecraft_uuid`, `minecraft_name`, `link_code`) " +
+                    "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `minecraft_name` = VALUES(`minecraft_name`), `link_code` = VALUES(`link_code`)";
+            String linkCode = UUID.randomUUID().toString().substring(0, 8);
+            DatabaseManager.get().query(sql, stmt -> {
+                stmt.setString(1, player.getUniqueId().toString());
+                stmt.setString(2, player.getUsername());
+                stmt.setString(3, linkCode);
+                stmt.executeUpdate();
+            });
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.link_discord.link_code", linkCode).color(NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
+    private static int executeUnlinkDiscord(@NotNull Player player) {
+        try {
+            String guildChatDiscordName = VelocityPlugin.getPlugin().getDatabaseConfig().guildChatDiscordName();
+            DatabaseManager.get().query("DELETE FROM `" + guildChatDiscordName + "`.`users` WHERE `minecraft_uuid` = ?", stmt -> {
+                stmt.setString(1, player.getUniqueId().toString());
+                stmt.executeUpdate();
+            });
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.unlink_discord.success").color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }

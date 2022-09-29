@@ -15,6 +15,7 @@ database:
   hostname: localhost
   port: 3306
   name: interchat
+  guildChatDiscordName: guildchatdiscord
   username: interchat
   password: interchat
   properties:

@@ -17,6 +17,7 @@ public final class DatabaseConfig {
     private final String hostname;
     private final int port;
     private final String name;
+    private final String guildChatDiscordName;
     private final String username;
     private final String password;
     private final Properties properties;
@@ -27,6 +28,7 @@ public final class DatabaseConfig {
         String hostname = Objects.requireNonNull(section.getString("hostname"));
         int port = section.getInt("port", 3306);
         String name = Objects.requireNonNull(section.getString("name"));
+        String guildChatDiscordName = section.getString("guildChatDiscordName", "guildchatdiscord");
         String username = section.getString("username");
         String password = section.getString("password");
         Properties properties = new Properties();
@@ -39,6 +41,7 @@ public final class DatabaseConfig {
         this.hostname = hostname;
         this.port = port;
         this.name = name;
+        this.guildChatDiscordName = guildChatDiscordName;
         this.username = username;
         this.password = password;
         this.properties = properties;
@@ -71,6 +74,12 @@ public final class DatabaseConfig {
     @NotNull
     public String name() {
         return name;
+    }
+
+    @Contract(pure = true)
+    @NotNull
+    public String guildChatDiscordName() {
+        return guildChatDiscordName;
     }
 
     @Contract(pure = true)

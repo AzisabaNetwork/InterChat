@@ -13,7 +13,6 @@ import net.azisaba.interchat.api.network.ProxyPacketListener;
 import net.azisaba.interchat.api.network.Side;
 import net.azisaba.interchat.api.text.Messages;
 import net.azisaba.interchat.api.util.MapEx;
-import net.azisaba.interchat.api.util.MoreObjects;
 import net.azisaba.interchat.velocity.command.GuildAdminCommand;
 import net.azisaba.interchat.velocity.command.GuildCommand;
 import net.azisaba.interchat.velocity.database.DatabaseConfig;
@@ -41,6 +40,7 @@ public class VelocityPlugin {
     private final VelocityInterChat api;
     private final JedisBox jedisBox;
     private final DatabaseManager databaseManager;
+    private final DatabaseConfig databaseConfig;
 
     @Inject
     public VelocityPlugin(@NotNull ProxyServer server, @NotNull Logger logger, @DataDirectory @NotNull Path dataDirectory) throws IOException, SQLException {
@@ -50,7 +50,6 @@ public class VelocityPlugin {
         logger.info("Loading translations...");
         Messages.load();
         logger.info("Loading config...");
-        InterChatProviderProvider.register(this.api = new VelocityInterChat(this));
         MapEx<Object, Object> config = new MapEx<>(new Yaml().load(Files.newInputStream(dataDirectory.resolve("config.yml"))));
         this.jedisBox = createJedisBos(config);
         MapEx<Object, Object> databaseConfig = config.getMap("database");
@@ -59,7 +58,9 @@ public class VelocityPlugin {
         }
 
         logger.info("Connecting to database...");
-        this.databaseManager = new DatabaseManager(new DatabaseConfig(databaseConfig).createDataSource());
+        this.databaseConfig = new DatabaseConfig(databaseConfig);
+        this.databaseManager = new DatabaseManager(this.databaseConfig.createDataSource());
+        InterChatProviderProvider.register(this.api = new VelocityInterChat(this));
     }
 
     @Contract("_ -> new")
@@ -124,6 +125,12 @@ public class VelocityPlugin {
     @NotNull
     public final DatabaseManager getDatabaseManager() {
         return databaseManager;
+    }
+
+    @Contract(pure = true)
+    @NotNull
+    public final DatabaseConfig getDatabaseConfig() {
+        return databaseConfig;
     }
 
     @Contract(pure = true)

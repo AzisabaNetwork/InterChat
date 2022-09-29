@@ -315,7 +315,7 @@ public class GuildCommand extends AbstractCommand {
             }
             db.submitLog(guildId, player, "Created guild");
             // mark the player as the owner of the guild
-            db.runPrepareStatement("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?)", stmt -> {
+            db.query("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?)", stmt -> {
                 stmt.setLong(1, guildId);
                 stmt.setString(2, player.getUniqueId().toString());
                 stmt.setString(3, GuildRole.OWNER.name());
@@ -323,7 +323,7 @@ public class GuildCommand extends AbstractCommand {
             });
             db.submitLog(guildId, player, "Set owner to " + player.getUsername() + "(" + player.getUniqueId() + ")");
             // select the guild
-            db.runPrepareStatement("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
+            db.query("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
                 stmt.setLong(1, guildId);
                 stmt.setString(2, player.getUniqueId().toString());
                 stmt.executeUpdate();
@@ -349,7 +349,7 @@ public class GuildCommand extends AbstractCommand {
             return 0;
         }
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `format` = ? WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `guilds` SET `format` = ? WHERE `id` = ?", stmt -> {
                 stmt.setString(1, format);
                 stmt.setLong(2, selectedGuild);
                 stmt.executeUpdate();
@@ -423,7 +423,7 @@ public class GuildCommand extends AbstractCommand {
             return 0;
         }
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
                 stmt.setLong(1, guild.id());
                 stmt.setString(2, player.getUniqueId().toString());
                 stmt.executeUpdate();
@@ -457,7 +457,7 @@ public class GuildCommand extends AbstractCommand {
         try {
             User user = member.getUser().join();
             if (member.role() != role) {
-                DatabaseManager.get().runPrepareStatement("UPDATE `guild_members` SET `role` = ? WHERE `guild_id` = ? AND `uuid` = ?", stmt -> {
+                DatabaseManager.get().query("UPDATE `guild_members` SET `role` = ? WHERE `guild_id` = ? AND `uuid` = ?", stmt -> {
                     stmt.setString(1, role.name());
                     stmt.setLong(2, selectedGuild);
                     stmt.setString(3, member.uuid().toString());
@@ -523,7 +523,7 @@ public class GuildCommand extends AbstractCommand {
         }
         // add invite entry to database
         try {
-            DatabaseManager.get().runPrepareStatement("INSERT INTO `guild_invites` (`guild_id`, `target`, `actor`, `expires_at`) VALUES (?, ?, ?, ?)", stmt -> {
+            DatabaseManager.get().query("INSERT INTO `guild_invites` (`guild_id`, `target`, `actor`, `expires_at`) VALUES (?, ?, ?, ?)", stmt -> {
                 stmt.setLong(1, selectedGuild);
                 stmt.setString(2, targetUUID.toString());
                 stmt.setString(3, player.getUniqueId().toString());
@@ -570,7 +570,7 @@ public class GuildCommand extends AbstractCommand {
             User actor = InterChatProvider.get().getUserManager().fetchUser(invite.actor()).join();
             // set selected guild
             try {
-                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
+                DatabaseManager.get().query("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.setString(2, invite.target().toString());
                     stmt.executeUpdate();
@@ -594,7 +594,7 @@ public class GuildCommand extends AbstractCommand {
         User user = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join();
         // toggle accepting invites
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `accepting_invites` = ? WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `players` SET `accepting_invites` = ? WHERE `id` = ?", stmt -> {
                 stmt.setBoolean(1, !user.acceptingInvites());
                 stmt.setString(2, player.getUniqueId().toString());
                 stmt.executeUpdate();
@@ -801,14 +801,14 @@ public class GuildCommand extends AbstractCommand {
                 // also see https://github.com/PaperMC/Velocity/issues/804 for more details on why this doesn't work
 
                 // remove focused guild
-                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {
+                DatabaseManager.get().query("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {
                     stmt.setString(1, player.getUniqueId().toString());
                     stmt.executeUpdate();
                 });
                 player.sendMessage(VMessages.formatComponent(player, "command.guild.focus.unfocused", guild.name()).color(NamedTextColor.GREEN));
             } else {
                 // set focused guild
-                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = ? WHERE `id` = ?", stmt -> {
+                DatabaseManager.get().query("UPDATE `players` SET `focused_guild` = ? WHERE `id` = ?", stmt -> {
                     stmt.setLong(1, selectedGuild);
                     stmt.setString(2, player.getUniqueId().toString());
                     stmt.executeUpdate();
@@ -824,7 +824,7 @@ public class GuildCommand extends AbstractCommand {
 
     private static int executeToggleTranslateKana(@NotNull Player player, boolean flag) {
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `translate_kana` = ? WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `players` SET `translate_kana` = ? WHERE `id` = ?", stmt -> {
                 stmt.setBoolean(1, flag);
                 stmt.setString(2, player.getUniqueId().toString());
                 stmt.executeUpdate();

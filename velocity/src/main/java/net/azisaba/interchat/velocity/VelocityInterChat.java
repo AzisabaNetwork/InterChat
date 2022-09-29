@@ -4,8 +4,9 @@ import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.InterChat;
 import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.user.UserManager;
+import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.guild.VelocityGuildManager;
-import net.azisaba.interchat.velocity.user.VelocityUserManager;
+import net.azisaba.interchat.api.user.SQLUserManager;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -14,7 +15,7 @@ import java.util.concurrent.Executor;
 public final class VelocityInterChat implements InterChat {
     private final Logger logger;
     private final GuildManager guildManager = new VelocityGuildManager();
-    private final UserManager userManager = new VelocityUserManager();
+    private final UserManager userManager = new SQLUserManager(DatabaseManager.get());
     private final Executor asyncExecutor;
 
     public VelocityInterChat(@NotNull VelocityPlugin plugin) {

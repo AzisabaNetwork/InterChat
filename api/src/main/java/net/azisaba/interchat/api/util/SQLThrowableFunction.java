@@ -1,4 +1,4 @@
-package net.azisaba.interchat.velocity.util;
+package net.azisaba.interchat.api.util;
 
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;

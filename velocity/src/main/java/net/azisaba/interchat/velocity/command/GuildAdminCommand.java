@@ -84,12 +84,12 @@ public class GuildAdminCommand extends AbstractCommand {
 
     private static int executeGuildSoftDelete(@NotNull CommandSource source, @NotNull Guild guild) {
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `guilds` SET `deleted` = 1 WHERE `id` = ?", stmt -> {
                 stmt.setLong(1, guild.id());
                 stmt.executeUpdate();
             });
             DatabaseManager.get().submitLog(guild.id(), source, "Deleted guild (soft)");
-            DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
                 stmt.setLong(1, guild.id());
                 stmt.executeUpdate();
             });
@@ -114,19 +114,19 @@ public class GuildAdminCommand extends AbstractCommand {
             source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.confirm.line2", "/guildadmin guild " + guild.name() + " hard-delete " + actualHash).color(NamedTextColor.RED));
         } else {
             try {
-                DatabaseManager.get().runPrepareStatement("DELETE FROM `guilds` WHERE `id` = ?", stmt -> {
+                DatabaseManager.get().query("DELETE FROM `guilds` WHERE `id` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });
-                DatabaseManager.get().runPrepareStatement("DELETE FROM `guild_members` WHERE `guild_id` = ?", stmt -> {
+                DatabaseManager.get().query("DELETE FROM `guild_members` WHERE `guild_id` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });
-                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
+                DatabaseManager.get().query("UPDATE `players` SET `selected_guild` = -1 WHERE `selected_guild` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });
-                DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = -1 WHERE `focused_guild` = ?", stmt -> {
+                DatabaseManager.get().query("UPDATE `players` SET `focused_guild` = -1 WHERE `focused_guild` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });
@@ -142,7 +142,7 @@ public class GuildAdminCommand extends AbstractCommand {
 
     private static int executeGuildRestore(@NotNull CommandSource source, @NotNull Guild guild) {
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `deleted` = 0 WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `guilds` SET `deleted` = 0 WHERE `id` = ?", stmt -> {
                 stmt.setLong(1, guild.id());
                 stmt.executeUpdate();
             });
@@ -157,7 +157,7 @@ public class GuildAdminCommand extends AbstractCommand {
 
     private static int executeGuildRole(@NotNull CommandSource source, @NotNull Guild guild, @NotNull UUID uuid, @NotNull GuildRole role) {
         try {
-            DatabaseManager.get().runPrepareStatement("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `role` = VALUES(`role`)", stmt -> {
+            DatabaseManager.get().query("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `role` = VALUES(`role`)", stmt -> {
                 stmt.setLong(1, guild.id());
                 stmt.setString(2, uuid.toString());
                 stmt.setString(3, role.name());
@@ -179,7 +179,7 @@ public class GuildAdminCommand extends AbstractCommand {
             return 0;
         } catch (CompletionException ignored) {}
         try {
-            DatabaseManager.get().runPrepareStatement("UPDATE `guilds` SET `name` = ? WHERE `id` = ?", stmt -> {
+            DatabaseManager.get().query("UPDATE `guilds` SET `name` = ? WHERE `id` = ?", stmt -> {
                 stmt.setString(1, newName);
                 stmt.setLong(2, guild.id());
                 stmt.executeUpdate();

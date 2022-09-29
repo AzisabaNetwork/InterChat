@@ -5,9 +5,10 @@ import com.velocitypowered.api.proxy.Player;
 import com.zaxxer.hikari.HikariDataSource;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
+import net.azisaba.interchat.api.util.QueryExecutor;
 import net.azisaba.interchat.velocity.VelocityPlugin;
-import net.azisaba.interchat.velocity.util.SQLThrowableConsumer;
-import net.azisaba.interchat.velocity.util.SQLThrowableFunction;
+import net.azisaba.interchat.api.util.SQLThrowableConsumer;
+import net.azisaba.interchat.api.util.SQLThrowableFunction;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -19,7 +20,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
 
-public final class DatabaseManager {
+public final class DatabaseManager implements QueryExecutor {
     private final @NotNull HikariDataSource dataSource;
 
     public DatabaseManager(@NotNull HikariDataSource dataSource) throws SQLException {
@@ -91,7 +92,8 @@ public final class DatabaseManager {
     }
 
     @Contract(pure = true)
-    public void runPrepareStatement(@Language("SQL") @NotNull String sql, @NotNull SQLThrowableConsumer<PreparedStatement> action) throws SQLException {
+    @Override
+    public void query(@Language("SQL") @NotNull String sql, @NotNull SQLThrowableConsumer<PreparedStatement> action) throws SQLException {
         use(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
                 action.accept(statement);
@@ -127,7 +129,7 @@ public final class DatabaseManager {
     public void submitLog(long guildId, @Nullable String actor, @NotNull String actorName, @NotNull String description) {
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
-                runPrepareStatement("INSERT INTO `guild_logs` (`guild_id`, `actor`, `actor_name`, `time`, `description`) VALUES (?, ?, ?, ?, ?)", statement -> {
+                query("INSERT INTO `guild_logs` (`guild_id`, `actor`, `actor_name`, `time`, `description`) VALUES (?, ?, ?, ?, ?)", statement -> {
                     statement.setLong(1, guildId);
                     statement.setString(2, actor);
                     statement.setString(3, actorName);

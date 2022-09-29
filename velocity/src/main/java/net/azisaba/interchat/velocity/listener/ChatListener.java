@@ -88,7 +88,7 @@ public final class ChatListener {
                     InterChatProvider.get().getGuildManager().getMember(focusedGuild, uuid).join();
                 } catch (CompletionException ex) {
                     // focused but not in guild
-                    DatabaseManager.get().runPrepareStatement("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {
+                    DatabaseManager.get().query("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {
                         stmt.setString(1, uuid.toString());
                         stmt.executeUpdate();
                     });

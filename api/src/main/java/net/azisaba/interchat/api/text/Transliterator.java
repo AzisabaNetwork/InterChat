@@ -50,11 +50,14 @@ public class Transliterator {
     }
 
     private static @NotNull List<@NotNull String> parseJson(String json) {
+        StringBuilder sb = new StringBuilder();
         List<String> list = new java.util.ArrayList<>();
         for (JsonElement response : new Gson().fromJson(json, JsonArray.class)) {
             JsonArray suggestions = response.getAsJsonArray().get(1).getAsJsonArray();
+            sb.append(suggestions.get(0).getAsString());
             suggestions.forEach(el -> list.add(el.getAsString()));
         }
+        list.add(0, sb.toString());
         return list;
     }
 }

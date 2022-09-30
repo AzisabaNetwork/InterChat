@@ -295,6 +295,10 @@ public class RomajiTextReader {
         add("cye", "ちぇ");
         add("cyo", "ちょ");
         add("-", "ー");
+        add(",", "、");
+        add(".", "。");
+        add("^", "＾");
+        add("~", "～");
         add("n", "ん"); // fallback
     }
 }

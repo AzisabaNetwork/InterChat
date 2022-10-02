@@ -151,7 +151,10 @@ public final class ChatListener {
         } else {
             boolean translateKana = InterChatProvider.get().getUserManager().fetchUser(e.getPlayer().getUniqueId()).join().translateKana();
             if (translateKana) {
-                transliteratedMessage = KanaTranslator.translateSync(message).get(0);
+                List<String> suggestions = KanaTranslator.translateSync(message);
+                if (!suggestions.isEmpty()) {
+                    transliteratedMessage = suggestions.get(0);
+                }
             }
         }
 

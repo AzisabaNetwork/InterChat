@@ -13,7 +13,7 @@ import java.lang.annotation.Target;
 // - a.b.c.
 // - .
 // - AnythingOtherThanLowercaseAlphanumericAndUnderscoreAndPeriod
-@Pattern("^([a-z0-9_]+\\.?)(?=\\.)+$")
+@Pattern("^(?:[a-z0-9_]+\\.?)+(?<!\\.)$")
 @Retention(RetentionPolicy.SOURCE)
 @Target({ElementType.METHOD, ElementType.FIELD, ElementType.PARAMETER, ElementType.LOCAL_VARIABLE})
 public @interface TranslatableKey {

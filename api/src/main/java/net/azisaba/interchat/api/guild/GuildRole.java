@@ -1,6 +1,7 @@
 package net.azisaba.interchat.api.guild;
 
 import net.azisaba.interchat.api.text.TranslatableKey;
+import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -16,6 +17,7 @@ public enum GuildRole {
         this.key = key;
     }
 
+    @Subst("guild.roles.member")
     @Contract(pure = true)
     @NotNull
     public String getKey() {

@@ -8,7 +8,7 @@ import java.util.function.Function;
 public abstract class MessageInstance {
     public static final MessageInstance FALLBACK = createSimple(Function.identity());
 
-    public abstract @NotNull String get(@NotNull String key);
+    public abstract @NotNull String get(@TranslatableKey @NotNull String key);
 
     @Contract(value = "_ -> new", pure = true)
     public static @NotNull MessageInstance createSimple(@NotNull Function<@NotNull String, @NotNull String> getter) {

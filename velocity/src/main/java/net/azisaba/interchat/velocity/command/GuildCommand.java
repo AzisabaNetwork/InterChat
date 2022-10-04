@@ -477,7 +477,7 @@ public class GuildCommand extends AbstractCommand {
                 });
                 DatabaseManager.get().submitLog(selectedGuild, player, "Changed role of " + member.uuid() + " (" + user.name() + ") to " + role.name());
             }
-            String translatedRole = VMessages.format(player, "guild.roles." + role.name().toLowerCase());
+            String translatedRole = VMessages.format(player, role.getKey());
             player.sendMessage(VMessages.formatComponent(player, "command.guild.role.success", user.name(), translatedRole).color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to change role of " + member.uuid() + " in guild " + selectedGuild, e);
@@ -738,7 +738,7 @@ public class GuildCommand extends AbstractCommand {
                             .filter(member -> member.role() == role)
                             .map(member -> users.get(member.uuid()).name())
                             .collect(Collectors.joining(", "));
-            String translatedRole = VMessages.format(player, "guild.roles." + role.name().toLowerCase());
+            String translatedRole = VMessages.format(player, role.getKey());
             player.sendMessage(VMessages.formatComponent(player, "command.guild.info.role_players", translatedRole, players).color(NamedTextColor.GOLD));
         }
         player.sendMessage(Component.empty());

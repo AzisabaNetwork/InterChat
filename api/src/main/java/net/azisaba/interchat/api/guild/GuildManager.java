@@ -32,8 +32,23 @@ public interface GuildManager {
     @NotNull
     CompletableFuture<Void> removeMember(long guildId, @NotNull UUID uuid);
 
+    /**
+     * Updates the guild member data. This also can be used to add a new member.
+     * @param guildId The guild id
+     * @param uuid The uuid of the player (member)
+     * @param role The role
+     * @return void future
+     */
     @NotNull
     CompletableFuture<Void> updateMemberRole(long guildId, @NotNull UUID uuid, @NotNull GuildRole role);
+
+    /**
+     * Updates the guild member data. This also can be used to add a new member.
+     * @param member The guild member
+     * @return void future that completes when the update is done
+     */
+    @NotNull
+    CompletableFuture<Void> updateMember(@NotNull GuildMember member);
 
     @NotNull
     CompletableFuture<List<Guild>> getGuildsOf(@NotNull UUID uuid);

@@ -30,7 +30,6 @@ public final class Protocol {
     // Proxy -> Backend
 
     // Anywhere -> Anywhere
-    // They should not be sent by API
     public static final NamedPacket<PacketListener, GuildMessagePacket> GUILD_MESSAGE = register("guild_message", GuildMessagePacket.class, GuildMessagePacket::new);
     public static final NamedPacket<PacketListener, GuildSoftDeletePacket> GUILD_SOFT_DELETE = register("guild_soft_delete", GuildSoftDeletePacket.class, GuildSoftDeletePacket::new);
     public static final NamedPacket<PacketListener, GuildInvitePacket> GUILD_INVITE = register("guild_invite", GuildInvitePacket.class, GuildInvitePacket::new);

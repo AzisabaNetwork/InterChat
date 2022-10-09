@@ -137,13 +137,6 @@ public class SQLGuildManager implements GuildManager {
         return future;
     }
 
-    /**
-     * Updates the guild member data. This also can be used to add a new member.
-     * @param guildId The guild id
-     * @param uuid The uuid of the player (member)
-     * @param role The role
-     * @return void future
-     */
     @Override
     public @NotNull CompletableFuture<Void> updateMemberRole(long guildId, @NotNull UUID uuid, @NotNull GuildRole role) {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -153,6 +146,26 @@ public class SQLGuildManager implements GuildManager {
                     stmt.setLong(1, guildId);
                     stmt.setString(2, uuid.toString());
                     stmt.setString(3, role.name());
+                    stmt.executeUpdate();
+                    future.complete(null);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Void> updateMember(@NotNull GuildMember member) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                queryExecutor.query("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`, `nickname`) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `nickname` = VALUES(`nickname`)", stmt ->{
+                    stmt.setLong(1, member.guildId());
+                    stmt.setString(2, member.uuid().toString());
+                    stmt.setString(3, member.role().name());
+                    stmt.setString(4, member.nickname());
                     stmt.executeUpdate();
                     future.complete(null);
                 });

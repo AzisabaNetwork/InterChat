@@ -27,13 +27,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Locale;
-import java.util.NoSuchElementException;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public abstract class AbstractCommand {
@@ -187,7 +185,7 @@ public abstract class AbstractCommand {
         return builder.buildFuture();
     }
 
-    private static boolean matchesSubStr(@NotNull String input, @NotNull String suggestion) {
+    public static boolean matchesSubStr(@NotNull String input, @NotNull String suggestion) {
         for(int i = 0; !suggestion.startsWith(input, i); ++i) {
             i = suggestion.indexOf('_', i);
             if (i < 0) {

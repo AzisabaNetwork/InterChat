@@ -51,13 +51,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,7 +71,8 @@ import java.util.stream.Collectors;
 public class GuildCommand extends AbstractCommand {
     private static final List<String> BLOCKED_GUILD_NAMES =
             Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
-                    "dontinviteme", "toggleinvites", "accept", "reject", "info", "linkdiscord");
+                    "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
+                    "linkdiscord", "unlinkdiscord", "nick");
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     public static final String COMMAND_NAME = "guild_test";
@@ -83,6 +87,12 @@ public class GuildCommand extends AbstractCommand {
     private static final Function<UUID, Guild> ACTUAL_GUILD = Functions.memoize(1000 * 10, uuid ->
             InterChatProvider.get().getGuildManager().fetchGuildById(ACTUAL_USER.apply(uuid).selectedGuild()).join()
     );
+    private static final Function<Map.Entry<Long, UUID>, GuildMember> GUILD_MEMBER = Functions.memoize(1000 * 10, entry ->
+            InterChatProvider.get().getGuildManager().getMember(entry.getKey(), entry.getValue()).join()
+    );
+    private static final Set<String> FORMAT_VARIABLES = new HashSet<>(Arrays.asList(
+            "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace"
+    ));
 
     @Override
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
@@ -100,11 +110,15 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.format"))
                         .then(argument("format", StringArgumentType.greedyString())
                                 .suggests((context, builder) -> {
+                                    // suggest variables
+                                    FORMAT_VARIABLES.forEach(builder::suggest);
+
+                                    // format preview
                                     User sampleUser = SAMPLE_USERS.apply(((Player) context.getSource()).getUsername());
                                     String format = context.getLastChild()
                                             .getInput()
                                             .replaceFirst(COMMAND_NAME + " format ", "");
-                                    String formatted = "\u00a7r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "tesuto", "テスト");
+                                    String formatted = "\u00a7r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "nicked user", "tesuto", "テスト");
                                     return builder.suggest(formatted.replace('&', '\u00a7')).buildFuture();
                                 })
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
@@ -119,6 +133,7 @@ public class GuildCommand extends AbstractCommand {
                                     // preview and suggest
                                     User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
                                     Guild guild = ACTUAL_GUILD.apply(user.id());
+                                    GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
                                     String server = ((Player) context.getSource())
                                             .getCurrentServer()
                                             .orElseThrow(IllegalStateException::new)
@@ -142,7 +157,7 @@ public class GuildCommand extends AbstractCommand {
                                             } catch (IndexOutOfBoundsException ignored) {}
                                         }
                                     }
-                                    String formatted = "\u00a7r" + MessageFormatter.format(format, guild, server, user, message, transliteratedEntire);
+                                    String formatted = "\u00a7r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
                                     builder.suggest(formatted.replace('&', '\u00a7'));
                                     if (!suggestions.isEmpty()) {
                                         suggestions = new ArrayList<>(suggestions);
@@ -246,6 +261,14 @@ public class GuildCommand extends AbstractCommand {
                         .executes(ctx -> executeLog((Player) ctx.getSource(), 0))
                         .then(argument("page", IntegerArgumentType.integer(1, Integer.MAX_VALUE))
                                 .executes(ctx -> executeLog((Player) ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))
+                        )
+                )
+                // member
+                .then(literal("nick")
+                        .requires(source -> source.hasPermission("interchat.guild.nick"))
+                        .executes(ctx -> executeNick((Player) ctx.getSource(), null))
+                        .then(argument("name", StringArgumentType.greedyString())
+                                .executes(ctx -> executeNick((Player) ctx.getSource(), StringArgumentType.getString(ctx, "name")))
                         )
                 )
                 // everyone
@@ -882,6 +905,20 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.unlink_discord.success").color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             throw new RuntimeException(e);
+        }
+        return 0;
+    }
+
+    private static int executeNick(@NotNull Player player, @Nullable String name) {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if ("off".equals(name)) name = null;
+        new GuildMember(member.guildId(), member.uuid(), member.role(), name).update();
+        if (name == null) {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.nick.off").color(NamedTextColor.GREEN));
+        } else {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.nick.on", name).color(NamedTextColor.GREEN));
         }
         return 0;
     }

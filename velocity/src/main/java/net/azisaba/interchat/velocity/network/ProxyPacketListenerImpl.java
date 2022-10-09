@@ -26,11 +26,13 @@ import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 public final class ProxyPacketListenerImpl implements ProxyPacketListener {
@@ -52,11 +54,13 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                 return;
             }
             List<GuildMember> members = guildManager.getMembers(guild).join();
+            Optional<String> nickname = members.stream().filter(m -> m.uuid().equals(user.id())).findAny().map(GuildMember::nickname);
             String formattedText = MessageFormatter.format(
                     guild.format(),
                     guild,
                     packet.server(),
                     user,
+                    nickname.orElse(null),
                     packet.message(),
                     packet.transliteratedMessage());
             Component formattedComponent = VMessages.fromLegacyText(formattedText);
@@ -133,6 +137,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
             if (guild == null || user == null) {
                 return;
             }
+            @Subst("guild.joined")
             String key = MoreObjects.getIf(packet.result() == GuildInviteResult.ACCEPTED, () -> "guild.joined", () -> "guild.invite_rejected");
             List<GuildMember> members = guild.getMembers().join();
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {

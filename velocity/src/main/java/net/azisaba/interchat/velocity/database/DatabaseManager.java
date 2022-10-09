@@ -42,6 +42,7 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `guild_id` BIGINT NOT NULL," +
                     "  `uuid` VARCHAR(36) NOT NULL," +
                     "  `role` VARCHAR(64) NOT NULL DEFAULT 'MEMBER'," +
+                    "  `nickname` VARCHAR(32) DEFAULT NULL," +
                     "  PRIMARY KEY (`guild_id`, `uuid`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_invites` (" +

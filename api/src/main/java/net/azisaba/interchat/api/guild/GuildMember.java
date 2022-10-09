@@ -4,6 +4,7 @@ import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.user.User;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -14,11 +15,18 @@ public final class GuildMember {
     private final long guildId;
     private final UUID uuid;
     private final GuildRole role;
+    @Nullable
+    private final String nickname;
 
     public GuildMember(long guildId, @NotNull UUID uuid, @NotNull GuildRole role) {
+        this(guildId, uuid, role, null);
+    }
+
+    public GuildMember(long guildId, @NotNull UUID uuid, @NotNull GuildRole role, @Nullable String nickname) {
         this.guildId = guildId;
         this.uuid = uuid;
         this.role = role;
+        this.nickname = nickname;
     }
 
     @Contract("_ -> new")
@@ -27,7 +35,8 @@ public final class GuildMember {
             long guildId = rs.getLong("guild_id");
             UUID uuid = UUID.fromString(rs.getString("uuid"));
             GuildRole role = GuildRole.valueOf(rs.getString("role"));
-            return new GuildMember(guildId, uuid, role);
+            String nickname = rs.getString("nickname");
+            return new GuildMember(guildId, uuid, role, nickname);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -49,6 +58,11 @@ public final class GuildMember {
     }
 
     @Contract(pure = true)
+    public @Nullable String nickname() {
+        return nickname;
+    }
+
+    @Contract(pure = true)
     public @NotNull CompletableFuture<User> getUser() {
         return InterChatProvider.get().getUserManager().fetchUser(uuid);
     }
@@ -67,6 +81,6 @@ public final class GuildMember {
     }
 
     public @NotNull CompletableFuture<Void> update() {
-        return InterChatProvider.get().getGuildManager().updateMemberRole(guildId, uuid, role);
+        return InterChatProvider.get().getGuildManager().updateMember(this);
     }
 }

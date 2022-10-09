@@ -65,6 +65,8 @@ command.guild.translate_kana.enabled: "Turned on the kana conversion."
 command.guild.translate_kana.disabled: "Turned off the kana conversion."
 command.guild.link_discord.link_code: "Your link code is &d%s&a."
 command.guild.unlink_discord.success: "Unlinked your Discord account."
+command.guild.nick.off: "Turned off the nickname."
+command.guild.nick.on: "Set your nickname to &r%s&a."
 
 command.guildadmin.guild.hard_delete.confirm.line1: "Are you sure want to delete the guild %s permanently?"
 command.guildadmin.guild.hard_delete.confirm.line2: "This action is cannot be undone. If you are sure, type: %s"

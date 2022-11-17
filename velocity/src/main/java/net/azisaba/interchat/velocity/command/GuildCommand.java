@@ -90,6 +90,7 @@ public class GuildCommand extends AbstractCommand {
     private static final Function<Map.Entry<Long, UUID>, GuildMember> GUILD_MEMBER = Functions.memoize(1000 * 10, entry ->
             InterChatProvider.get().getGuildManager().getMember(entry.getKey(), entry.getValue()).join()
     );
+    private static final Set<String> PLAYER_NAME_VARIABLES = new HashSet<>(Arrays.asList("%playername", "%username", "%username-n"));
     private static final Set<String> FORMAT_VARIABLES = new HashSet<>(Arrays.asList(
             "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace"
     ));
@@ -368,7 +369,7 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeFormat(@NotNull Player player, @NotNull String format) {
-        if (!format.contains("%msg") || !format.contains("%username")) {
+        if (!format.contains("%msg") || PLAYER_NAME_VARIABLES.stream().noneMatch(format::contains)) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.format.invalid_format").color(NamedTextColor.RED));
             return 0;
         }

@@ -1,5 +1,6 @@
 package net.azisaba.interchat.velocity.command;
 
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -19,6 +20,7 @@ import net.azisaba.interchat.api.guild.GuildRole;
 import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
 import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
+import net.azisaba.interchat.api.network.protocol.GuildJoinPacket;
 import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
 import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
@@ -72,12 +74,12 @@ public class GuildCommand extends AbstractCommand {
     private static final List<String> BLOCKED_GUILD_NAMES =
             Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
                     "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
-                    "linkdiscord", "unlinkdiscord", "nick");
+                    "linkdiscord", "unlinkdiscord", "nick", "open", "join");
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     public static final String COMMAND_NAME = "guild_test";
     private static final Map<UUID, Long> LAST_GUILD_INVITE = new ConcurrentHashMap<>();
-    private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false);
+    private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false, false);
     private static final Function<String, User> SAMPLE_USERS = Functions.memoize(s ->
             new User(new UUID(0, 0), s, -1, -1, false, false)
     );
@@ -119,8 +121,8 @@ public class GuildCommand extends AbstractCommand {
                                     String format = context.getLastChild()
                                             .getInput()
                                             .replaceFirst(COMMAND_NAME + " format ", "");
-                                    String formatted = "\u00a7r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "nicked user", "tesuto", "テスト");
-                                    return builder.suggest(formatted.replace('&', '\u00a7')).buildFuture();
+                                    String formatted = "§r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "nicked user", "tesuto", "テスト");
+                                    return builder.suggest(formatted.replace('&', '§')).buildFuture();
                                 })
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
                         )
@@ -158,8 +160,8 @@ public class GuildCommand extends AbstractCommand {
                                             } catch (IndexOutOfBoundsException ignored) {}
                                         }
                                     }
-                                    String formatted = "\u00a7r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
-                                    builder.suggest(formatted.replace('&', '\u00a7'));
+                                    String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
+                                    builder.suggest(formatted.replace('&', '§'));
                                     if (!suggestions.isEmpty()) {
                                         suggestions = new ArrayList<>(suggestions);
                                         Collections.reverse(suggestions);
@@ -202,6 +204,14 @@ public class GuildCommand extends AbstractCommand {
                                 )
                         )
                 )
+                // owner
+                .then(literal("open")
+                        .requires(source -> source.hasPermission("interchat.guild.open"))
+                        .executes(ctx -> executeOpen((Player) ctx.getSource(), null))
+                        .then(argument("open", BoolArgumentType.bool())
+                                .executes(ctx -> executeOpen((Player) ctx.getSource(), BoolArgumentType.getBool(ctx, "open")))
+                        )
+                )
                 // moderator
                 .then(literal("invite")
                         .requires(source -> source.hasPermission("interchat.guild.invite"))
@@ -233,6 +243,13 @@ public class GuildCommand extends AbstractCommand {
                 .then(literal("toggleinvites")
                         .requires(source -> source.hasPermission("interchat.guild.toggleinvites"))
                         .executes(ctx -> executeToggleAcceptingInvites((Player) ctx.getSource()))
+                )
+                // everyone
+                .then(literal("join")
+                        .requires(source -> source.hasPermission("interchat.guild.join"))
+                        .then(argument("guild", StringArgumentType.word())
+                                .executes(ctx -> executeJoin((Player) ctx.getSource(), StringArgumentType.getString(ctx, "guild")))
+                        )
                 )
                 // moderator
                 .then(literal("kick")
@@ -510,6 +527,48 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
+    private static int executeOpen(@NotNull Player player, @Nullable Boolean open) {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
+        if (open == null) {
+            // toggle
+            open = !guild.open();
+        }
+        GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (self.role() != GuildRole.OWNER) {
+            // member must be owner
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.delete.not_owner").color(NamedTextColor.RED));
+            return 0;
+        }
+        if (open && !player.hasPermission("interchat.guild.open.to_public")) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.permission").color(NamedTextColor.RED));
+            return 0;
+        }
+        if (!open && !player.hasPermission("interchat.guild.open.to_private")) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.permission").color(NamedTextColor.RED));
+            return 0;
+        }
+        try {
+            boolean finalOpen = open;
+            DatabaseManager.get().query("UPDATE `guilds` SET `open` = ? WHERE `id` = ?", stmt -> {
+                stmt.setBoolean(1, finalOpen);
+                stmt.setLong(2, selectedGuild);
+                stmt.executeUpdate();
+            });
+            DatabaseManager.get().submitLog(selectedGuild, player, "Set the guild open state to " + open);
+            if (open) {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.open.success.true", COMMAND_NAME, guild.name()).color(NamedTextColor.GREEN));
+            } else {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.open.success.false").color(NamedTextColor.GREEN));
+            }
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to change open state of guild " + selectedGuild, e);
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.open.error").color(NamedTextColor.RED));
+        }
+        return 0;
+    }
+
     private static int executeInvite(@NotNull Player player, @NotNull CommandContext<CommandSource> ctx) throws CommandSyntaxException {
         // check last guild invite
         if (!player.hasPermission("interchat.bypass_guild_invite_cooldown") && LAST_GUILD_INVITE.containsKey(player.getUniqueId())) {
@@ -648,6 +707,40 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
+    private static int executeJoin(@NotNull Player player, @NotNull String guildName) {
+        // fetch guild
+        Guild guild;
+        try {
+            guild = InterChatProvider.get().getGuildManager().fetchGuildByName(guildName).join();
+        } catch (CompletionException e) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", guildName).color(NamedTextColor.RED));
+            return 0;
+        }
+        // check if guild is public
+        if (!guild.open()) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", guildName).color(NamedTextColor.RED));
+            return 0;
+        }
+        // join the guild
+        new GuildMember(guild.id(), player.getUniqueId(), GuildRole.MEMBER).update().join();
+        // set selected guild
+        try {
+            DatabaseManager.get().query("UPDATE `players` SET `selected_guild` = ? WHERE `id` = ?", stmt -> {
+                stmt.setLong(1, guild.id());
+                stmt.setString(2, player.getUniqueId().toString());
+                stmt.executeUpdate();
+            });
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+        DatabaseManager.get().submitLog(guild.id(), player, player.getUsername() + " (" + player.getUniqueId() + ") joined the guild using /" + COMMAND_NAME + " join");
+        Protocol.GUILD_JOIN.send(
+                VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
+                new GuildJoinPacket(guild.id(), player.getUniqueId())
+        );
+        return 0;
+    }
+
     private static int executeLeave(@NotNull Player player) {
         // fetch guild
         long selectedGuild = ensureSelected(player);
@@ -765,6 +858,8 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.info.role_players", translatedRole, players).color(NamedTextColor.GOLD));
         }
         player.sendMessage(Component.empty());
+        player.sendMessage(VMessages.formatComponent(player, "command.guild.info.open").color(NamedTextColor.GOLD)
+                .append(Component.text(guild.open()).color(guild.open() ? NamedTextColor.GREEN : NamedTextColor.RED)));
         player.sendMessage(VMessages.formatComponent(player, "command.guild.info.format").color(NamedTextColor.GOLD)
                 .append(Component.text(guild.format(), NamedTextColor.WHITE)
                         .hoverEvent(HoverEvent.showText(VMessages.formatComponent(player, "generic.hover.click_to_copy")))

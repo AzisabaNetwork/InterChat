@@ -3,6 +3,7 @@ package net.azisaba.interchat.api.network;
 import io.netty.buffer.ByteBuf;
 import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
 import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
+import net.azisaba.interchat.api.network.protocol.GuildJoinPacket;
 import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
 import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
@@ -36,6 +37,7 @@ public final class Protocol {
     public static final NamedPacket<PacketListener, GuildInviteResultPacket> GUILD_INVITE_RESULT = register("guild_invite_result", GuildInviteResultPacket.class, GuildInviteResultPacket::new);
     public static final NamedPacket<PacketListener, GuildLeavePacket> GUILD_LEAVE = register("guild_leave", GuildLeavePacket.class, GuildLeavePacket::new);
     public static final NamedPacket<PacketListener, GuildKickPacket> GUILD_KICK = register("guild_kick", GuildKickPacket.class, GuildKickPacket::new);
+    public static final NamedPacket<PacketListener, GuildJoinPacket> GUILD_JOIN = register("guild_join", GuildJoinPacket.class, GuildJoinPacket::new);
 
     @NotNull
     @Contract("_, _, _ -> new")

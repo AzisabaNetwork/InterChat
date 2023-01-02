@@ -36,6 +36,7 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `format` VARCHAR(255) NOT NULL," +
                     "  `capacity` INT NOT NULL DEFAULT 100," +
                     "  `deleted` TINYINT(1) NOT NULL DEFAULT 0," +
+                    "  `open` TINYINT(1) NOT NULL DEFAULT 0," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_members` (" +

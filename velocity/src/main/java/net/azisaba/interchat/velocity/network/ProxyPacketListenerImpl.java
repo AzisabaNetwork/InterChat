@@ -8,6 +8,7 @@ import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.network.ProxyPacketListener;
 import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
 import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
+import net.azisaba.interchat.api.network.protocol.GuildJoinPacket;
 import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
 import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
@@ -180,6 +181,24 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
                 Component component =
                         VMessages.formatComponent(player, "guild.kicked", actor.name(), user.name(), guild.name())
+                                .color(NamedTextColor.GOLD);
+                player.sendMessage(component);
+            }));
+        });
+    }
+
+    @Override
+    public void handleGuildJoin(@NotNull GuildJoinPacket packet) {
+        CompletableFuture<Guild> guildFuture = plugin.getAPI().getGuildManager().fetchGuildById(packet.guildId());
+        CompletableFuture<User> userFuture = plugin.getAPI().getUserManager().fetchUser(packet.player());
+        AsyncUtil.collectAsync(guildFuture, userFuture, (guild, user) -> {
+            if (guild == null || user == null) {
+                return;
+            }
+            List<GuildMember> members = guild.getMembers().join();
+            members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
+                Component component =
+                        VMessages.formatComponent(player, "guild.joined", user.name(), guild.name())
                                 .color(NamedTextColor.GOLD);
                 player.sendMessage(component);
             }));

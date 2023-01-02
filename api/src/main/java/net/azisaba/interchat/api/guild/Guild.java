@@ -17,14 +17,16 @@ public final class Guild {
     private final String format;
     private final int capacity;
     private final boolean deleted;
+    private final boolean open;
 
     @Contract(pure = true)
-    public Guild(long id, @NotNull String name, @NotNull String format, int capacity, boolean deleted) {
+    public Guild(long id, @NotNull String name, @NotNull String format, int capacity, boolean deleted, boolean open) {
         this.id = id;
         this.name = name;
         this.format = format;
         this.capacity = capacity;
         this.deleted = deleted;
+        this.open = open;
     }
 
     @Contract("_ -> new")
@@ -35,7 +37,8 @@ public final class Guild {
             String format = rs.getString("format");
             int capacity = rs.getInt("capacity");
             boolean deleted = rs.getBoolean("deleted");
-            return new Guild(id, name, format, capacity, deleted);
+            boolean open = rs.getBoolean("open");
+            return new Guild(id, name, format, capacity, deleted, open);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -66,6 +69,11 @@ public final class Guild {
     @Contract(pure = true)
     public boolean deleted() {
         return deleted;
+    }
+
+    @Contract(pure = true)
+    public boolean open() {
+        return open;
     }
 
     @Contract(pure = true)

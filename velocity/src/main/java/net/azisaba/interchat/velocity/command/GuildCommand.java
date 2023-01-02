@@ -96,6 +96,7 @@ public class GuildCommand extends AbstractCommand {
     private static final Set<String> FORMAT_VARIABLES = new HashSet<>(Arrays.asList(
             "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace"
     ));
+    private static final ConcurrentHashMap<UUID, Long> LAST_GUILD_CREATED = new ConcurrentHashMap<>();
 
     @Override
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
@@ -325,10 +326,18 @@ public class GuildCommand extends AbstractCommand {
     }
 
     private static int executeCreate(@NotNull Player player, @NotNull String name) {
+        // check last created guild
+        if (LAST_GUILD_CREATED.getOrDefault(player.getUniqueId(), 0L) + 1000 * 60 * 60 > System.currentTimeMillis()) {
+            // 1 hour cooldown
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.create.cooldown").color(NamedTextColor.RED));
+            return 0;
+        }
+        // check guild name
         if (!GUILD_NAME_PATTERN.matcher(name).matches() || BLOCKED_GUILD_NAMES.contains(name.toLowerCase())) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.create.invalid_name").color(NamedTextColor.RED));
             return 0;
         }
+        // check owned guild
         if (!player.hasPermission("interchat.create_more_than_one_guild") &&
                 !InterChatProvider.get().getGuildManager().getOwnedGuilds(player.getUniqueId(), false).join().isEmpty()) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.create.owned_guild").color(NamedTextColor.RED));
@@ -341,6 +350,7 @@ public class GuildCommand extends AbstractCommand {
         } catch (CompletionException ignore) {
         }
         try {
+            LAST_GUILD_CREATED.put(player.getUniqueId(), System.currentTimeMillis());
             DatabaseManager db = DatabaseManager.get();
             long guildId;
             // create guild

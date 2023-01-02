@@ -596,7 +596,6 @@ public class GuildCommand extends AbstractCommand {
                 throw new NoSuchElementException("Invite expired");
             }
         } catch (NoSuchElementException | CompletionException e) {
-            player.sendMessage(VMessages.formatComponent(player, "command.guild.accept_reject.not_invited").color(NamedTextColor.RED));
             return 0;
         }
         // accept or reject

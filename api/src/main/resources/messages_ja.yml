@@ -68,6 +68,7 @@ command.guild.focus.unfocused: "チャットの発言先を元に戻しました
 command.guild.translate_kana.enabled: "かな変換をオンにしました。"
 command.guild.translate_kana.disabled: "かな変換をオフにしました。"
 command.guild.link_discord.link_code: "連携に必要なコードは&d%s&aです。"
+command.guild.link_discord.generate_code_failed: "連携コードの生成に失敗しました。もう一度お試しください。"
 command.guild.unlink_discord.success: "Discordとの連携を解除しました。"
 command.guild.nick.off: "ニックネームを削除しました。"
 command.guild.nick.on: "ニックネームを &r%s &aに設定しました。"

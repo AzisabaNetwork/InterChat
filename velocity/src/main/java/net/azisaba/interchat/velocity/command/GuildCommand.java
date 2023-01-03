@@ -983,10 +983,18 @@ public class GuildCommand extends AbstractCommand {
     private static int executeLinkDiscord(@NotNull Player player) {
         try {
             String guildChatDiscordName = VelocityPlugin.getPlugin().getDatabaseConfig().guildChatDiscordName();
+            String linkCode = UUID.randomUUID().toString().substring(0, 8);
+            DatabaseManager.get().query("SELECT `id` FROM `" + guildChatDiscordName + "`.`users` WHERE `link_code` = ?", ps -> {
+                ps.setString(1, linkCode);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        throw new IllegalStateException("Link code already exists");
+                    }
+                }
+            });
             @Language("SQL")
             String sql = "INSERT INTO `" + guildChatDiscordName + "`.`users` (`minecraft_uuid`, `minecraft_name`, `link_code`) " +
                     "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `minecraft_name` = VALUES(`minecraft_name`), `link_code` = VALUES(`link_code`)";
-            String linkCode = UUID.randomUUID().toString().substring(0, 8);
             DatabaseManager.get().query(sql, stmt -> {
                 stmt.setString(1, player.getUniqueId().toString());
                 stmt.setString(2, player.getUsername());
@@ -994,7 +1002,13 @@ public class GuildCommand extends AbstractCommand {
                 stmt.executeUpdate();
             });
             player.sendMessage(VMessages.formatComponent(player, "command.guild.link_discord.link_code", linkCode).color(NamedTextColor.GREEN));
-        } catch (SQLException e) {
+        } catch (Exception e) {
+            if ("Link code already exists".equals(e.getMessage())) {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.link_discord.generate_code_failed").color(NamedTextColor.RED));
+            }
+            if (e instanceof RuntimeException) {
+                throw (RuntimeException) e;
+            }
             throw new RuntimeException(e);
         }
         return 0;

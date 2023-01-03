@@ -66,11 +66,13 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class GuildCommand extends AbstractCommand {
+    private static final int LINK_EXPIRE_MINUTES = 10;
     private static final List<String> BLOCKED_GUILD_NAMES =
             Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
                     "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
@@ -993,15 +995,16 @@ public class GuildCommand extends AbstractCommand {
                 }
             });
             @Language("SQL")
-            String sql = "INSERT INTO `" + guildChatDiscordName + "`.`users` (`minecraft_uuid`, `minecraft_name`, `link_code`) " +
-                    "VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `minecraft_name` = VALUES(`minecraft_name`), `link_code` = VALUES(`link_code`)";
+            String sql = "INSERT INTO `" + guildChatDiscordName + "`.`users` (`minecraft_uuid`, `minecraft_name`, `link_code`, `expires_at`) " +
+                    "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE `minecraft_name` = VALUES(`minecraft_name`), `link_code` = VALUES(`link_code`), `expires_at` = VALUES(`expires_at`)";
             DatabaseManager.get().query(sql, stmt -> {
                 stmt.setString(1, player.getUniqueId().toString());
                 stmt.setString(2, player.getUsername());
                 stmt.setString(3, linkCode);
+                stmt.setLong(4, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(LINK_EXPIRE_MINUTES));
                 stmt.executeUpdate();
             });
-            player.sendMessage(VMessages.formatComponent(player, "command.guild.link_discord.link_code", linkCode).color(NamedTextColor.GREEN));
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.link_discord.link_code", linkCode, LINK_EXPIRE_MINUTES).color(NamedTextColor.GREEN));
         } catch (Exception e) {
             if ("Link code already exists".equals(e.getMessage())) {
                 player.sendMessage(VMessages.formatComponent(player, "command.guild.link_discord.generate_code_failed").color(NamedTextColor.RED));

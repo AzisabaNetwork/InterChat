@@ -324,6 +324,11 @@ public class RomajiTextReader {
         add("ccyu", "っちゅ");
         add("ccye", "っちぇ");
         add("ccyo", "っちょ");
+        add("dha", "でゃ");
+        add("dhi", "でぃ");
+        add("dhu", "でゅ");
+        add("dhe", "でぇ");
+        add("dho", "でょ");
         add("-", "ー");
         add(",", "、");
         add(".", "。");

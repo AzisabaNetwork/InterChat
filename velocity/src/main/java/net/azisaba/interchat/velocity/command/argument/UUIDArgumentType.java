@@ -76,7 +76,9 @@ public class UUIDArgumentType {
         if (users.size() == 1) {
             return users.get(0).id();
         }
-        // if users is empty or has more than one user
+        if (users.isEmpty()) {
+            throw INVALID_UUID.apply(ctx, value);
+        }
         try {
             // get from Mojang API as last resort
             return fetchUUIDFromMojangAPI(value);

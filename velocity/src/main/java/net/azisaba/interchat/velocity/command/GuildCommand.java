@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.Player;
@@ -99,6 +100,45 @@ public class GuildCommand extends AbstractCommand {
             "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace"
     ));
     private static final ConcurrentHashMap<UUID, Long> LAST_GUILD_CREATED = new ConcurrentHashMap<>();
+    public static final SuggestionProvider<CommandSource> CHAT_SUGGESTION_PROVIDER = (context, builder) -> {
+        // preview and suggest
+        User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
+        Guild guild = ACTUAL_GUILD.apply(user.id());
+        GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
+        String server = ((Player) context.getSource())
+                .getCurrentServer()
+                .orElseThrow(IllegalStateException::new)
+                .getServerInfo()
+                .getName();
+        String format = guild.format().replace("&r", "&r&f");
+        String message = builder.getRemaining();
+        String transliteratedEntire = null;
+        List<String> suggestions = Collections.emptyList();
+        if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
+            message = message.substring(1);
+        } else {
+            boolean translateKana = user.translateKana();
+            if (translateKana) {
+                suggestions = KanaTranslator.translateSync(message);
+                if (!suggestions.isEmpty()) {
+                    transliteratedEntire = suggestions.get(0);
+                }
+                try {
+                    suggestions = KanaTranslator.translateSync(message.substring(message.lastIndexOf(' ') + 1));
+                } catch (IndexOutOfBoundsException ignored) {}
+            }
+        }
+        String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
+        builder.suggest(formatted.replace('&', '§'));
+        if (!suggestions.isEmpty()) {
+            suggestions = new ArrayList<>(suggestions);
+            Collections.reverse(suggestions);
+            for (String suggestion : suggestions) {
+                builder.suggest(suggestion);
+            }
+        }
+        return builder.buildFuture();
+    };
 
     @Override
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
@@ -135,45 +175,7 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .executes(ctx -> executeSetFocusedGuild((Player) ctx.getSource()))
                         .then(argument("message", StringArgumentType.greedyString())
-                                .suggests((context, builder) -> {
-                                    // preview and suggest
-                                    User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
-                                    Guild guild = ACTUAL_GUILD.apply(user.id());
-                                    GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
-                                    String server = ((Player) context.getSource())
-                                            .getCurrentServer()
-                                            .orElseThrow(IllegalStateException::new)
-                                            .getServerInfo()
-                                            .getName();
-                                    String format = guild.format().replace("&r", "&r&f");
-                                    String message = builder.getRemaining();
-                                    String transliteratedEntire = null;
-                                    List<String> suggestions = Collections.emptyList();
-                                    if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
-                                        message = message.substring(1);
-                                    } else {
-                                        boolean translateKana = user.translateKana();
-                                        if (translateKana) {
-                                            suggestions = KanaTranslator.translateSync(message);
-                                            if (!suggestions.isEmpty()) {
-                                                transliteratedEntire = suggestions.get(0);
-                                            }
-                                            try {
-                                                suggestions = KanaTranslator.translateSync(message.substring(message.lastIndexOf(' ') + 1));
-                                            } catch (IndexOutOfBoundsException ignored) {}
-                                        }
-                                    }
-                                    String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
-                                    builder.suggest(formatted.replace('&', '§'));
-                                    if (!suggestions.isEmpty()) {
-                                        suggestions = new ArrayList<>(suggestions);
-                                        Collections.reverse(suggestions);
-                                        for (String suggestion : suggestions) {
-                                            builder.suggest(suggestion);
-                                        }
-                                    }
-                                    return builder.buildFuture();
-                                })
+                                .suggests(CHAT_SUGGESTION_PROVIDER)
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
                 )
@@ -425,7 +427,7 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
-    private static int executeChat(@NotNull Player player, @NotNull String message) {
+    public static int executeChat(@NotNull Player player, @NotNull String message) {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
         return executeChat(player, message, selectedGuild);
@@ -480,7 +482,7 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
-    private static int executeSelect(@NotNull Player player, @NotNull Guild guild) {
+    public static int executeSelect(@NotNull Player player, @NotNull Guild guild) {
         try {
             guild.getMember(player.getUniqueId()).join();
         } catch (CompletionException e) {
@@ -920,13 +922,13 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
-    private static int executeSetFocusedGuild(@NotNull Player player) {
+    public static int executeSetFocusedGuild(@NotNull Player player) {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
         return executeSetFocusedGuild(player, selectedGuild);
     }
 
-    private static int executeSetFocusedGuild(@NotNull Player player, long selectedGuild) {
+    public static int executeSetFocusedGuild(@NotNull Player player, long selectedGuild) {
         Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
         try {
             guild.getMember(player.getUniqueId()).join();

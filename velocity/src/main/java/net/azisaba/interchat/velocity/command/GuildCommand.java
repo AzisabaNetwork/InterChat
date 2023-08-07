@@ -433,7 +433,7 @@ public class GuildCommand extends AbstractCommand {
         return executeChat(player, message, selectedGuild);
     }
 
-    private static int executeChat(@NotNull Player player, @NotNull String message, long selectedGuild) {
+    static int executeChat(@NotNull Player player, @NotNull String message, long selectedGuild) {
         try {
             InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
         } catch (CompletionException e) {
@@ -460,7 +460,7 @@ public class GuildCommand extends AbstractCommand {
                 message,
                 transliteratedMessage);
         VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_MESSAGE.getName(), packet);
-        return 0;
+        return 1;
     }
 
     private static int executeDelete(@NotNull Player player) {

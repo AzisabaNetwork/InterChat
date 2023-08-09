@@ -68,6 +68,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -89,7 +90,7 @@ public class GuildCommand extends AbstractCommand {
     private static final Function<UUID, User> ACTUAL_USER = Functions.memoize(1000 * 10, uuid ->
             InterChatProvider.get().getUserManager().fetchUser(uuid).join()
     );
-    private static final Function<UUID, Guild> ACTUAL_GUILD = Functions.memoize(1000 * 10, uuid ->
+    static final Function<UUID, Guild> ACTUAL_GUILD = Functions.memoize(1000 * 10, uuid ->
             InterChatProvider.get().getGuildManager().fetchGuildById(ACTUAL_USER.apply(uuid).selectedGuild()).join()
     );
     private static final Function<Map.Entry<Long, UUID>, GuildMember> GUILD_MEMBER = Functions.memoize(1000 * 10, entry ->
@@ -100,45 +101,47 @@ public class GuildCommand extends AbstractCommand {
             "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace"
     ));
     private static final ConcurrentHashMap<UUID, Long> LAST_GUILD_CREATED = new ConcurrentHashMap<>();
-    public static final SuggestionProvider<CommandSource> CHAT_SUGGESTION_PROVIDER = (context, builder) -> {
-        // preview and suggest
-        User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
-        Guild guild = ACTUAL_GUILD.apply(user.id());
-        GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
-        String server = ((Player) context.getSource())
-                .getCurrentServer()
-                .orElseThrow(IllegalStateException::new)
-                .getServerInfo()
-                .getName();
-        String format = guild.format().replace("&r", "&r&f");
-        String message = builder.getRemaining();
-        String transliteratedEntire = null;
-        List<String> suggestions = Collections.emptyList();
-        if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
-            message = message.substring(1);
-        } else {
-            boolean translateKana = user.translateKana();
-            if (translateKana) {
-                suggestions = KanaTranslator.translateSync(message);
-                if (!suggestions.isEmpty()) {
-                    transliteratedEntire = suggestions.get(0);
+    public static @NotNull SuggestionProvider<CommandSource> getChatSuggestionProvider(ChatSuggestionGuildProvider chatSuggestionGuildProvider) {
+        return (context, builder) -> {
+            // preview and suggest
+            User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
+            Guild guild = chatSuggestionGuildProvider.apply(context, user.id());
+            GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
+            String server = ((Player) context.getSource())
+                    .getCurrentServer()
+                    .orElseThrow(IllegalStateException::new)
+                    .getServerInfo()
+                    .getName();
+            String format = guild.format().replace("&r", "&r&f");
+            String message = builder.getRemaining();
+            String transliteratedEntire = null;
+            List<String> suggestions = Collections.emptyList();
+            if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
+                message = message.substring(1);
+            } else {
+                boolean translateKana = user.translateKana();
+                if (translateKana) {
+                    suggestions = KanaTranslator.translateSync(message);
+                    if (!suggestions.isEmpty()) {
+                        transliteratedEntire = suggestions.get(0);
+                    }
+                    try {
+                        suggestions = KanaTranslator.translateSync(message.substring(message.lastIndexOf(' ') + 1));
+                    } catch (IndexOutOfBoundsException ignored) {}
                 }
-                try {
-                    suggestions = KanaTranslator.translateSync(message.substring(message.lastIndexOf(' ') + 1));
-                } catch (IndexOutOfBoundsException ignored) {}
             }
-        }
-        String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
-        builder.suggest(formatted.replace('&', '§'));
-        if (!suggestions.isEmpty()) {
-            suggestions = new ArrayList<>(suggestions);
-            Collections.reverse(suggestions);
-            for (String suggestion : suggestions) {
-                builder.suggest(suggestion);
+            String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
+            builder.suggest(formatted.replace('&', '§'));
+            if (!suggestions.isEmpty()) {
+                suggestions = new ArrayList<>(suggestions);
+                Collections.reverse(suggestions);
+                for (String suggestion : suggestions) {
+                    builder.suggest(suggestion);
+                }
             }
-        }
-        return builder.buildFuture();
-    };
+            return builder.buildFuture();
+        };
+    }
 
     @Override
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
@@ -175,7 +178,7 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .executes(ctx -> executeSetFocusedGuild((Player) ctx.getSource()))
                         .then(argument("message", StringArgumentType.greedyString())
-                                .suggests(CHAT_SUGGESTION_PROVIDER)
+                                .suggests(getChatSuggestionProvider((ctx, uuid) -> ACTUAL_GUILD.apply(uuid)))
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
                 )

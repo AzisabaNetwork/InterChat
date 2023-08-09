@@ -17,7 +17,7 @@ public class GSShortCommand extends AbstractCommand {
                         .executes(ctx -> GuildCommand.executeSelect((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false)))
                         .then(argument("message", StringArgumentType.greedyString())
                                 .requires(source -> source.hasPermission("interchat.guild.chat"))
-                                .suggests(GuildCommand.CHAT_SUGGESTION_PROVIDER)
+                                .suggests(GuildCommand.getChatSuggestionProvider((ctx, uuid) -> GuildArgumentType.get(ctx, "guild", false)))
                                 .executes(ctx -> GuildCommand.executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message"), GuildArgumentType.get(ctx, "guild", false).id()))
                         )
                 );

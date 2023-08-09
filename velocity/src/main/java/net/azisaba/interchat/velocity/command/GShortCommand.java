@@ -13,7 +13,7 @@ public class GShortCommand extends AbstractCommand {
                 .requires(source -> source instanceof Player && source.hasPermission("interchat.guild") && source.hasPermission("interchat.guild.chat"))
                 .executes(ctx -> GuildCommand.executeSetFocusedGuild((Player) ctx.getSource()))
                 .then(argument("message", StringArgumentType.greedyString())
-                        .suggests(GuildCommand.CHAT_SUGGESTION_PROVIDER)
+                        .suggests(GuildCommand.getChatSuggestionProvider((ctx, uuid) -> GuildCommand.ACTUAL_GUILD.apply(uuid)))
                         .executes(ctx -> GuildCommand.executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                 );
     }

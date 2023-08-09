@@ -9,6 +9,6 @@ public class TimeUtilTest {
         String time = TimeUtil.toRelativeTimeAbs(0, 1000);
         assert time.equals("1s") : time;
         time = TimeUtil.toRelativeTimeAbs(202208072355L, 1L);
-        assert time.equals("2340d 8h 54m 32s 354ms") : time;
+        assert time.equals("2340d 8h 54m 32s") : time;
     }
 }

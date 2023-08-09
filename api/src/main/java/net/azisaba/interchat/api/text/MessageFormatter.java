@@ -61,7 +61,7 @@ public final class MessageFormatter {
      * @param nickname the nickname of the sender
      * @param message the original message
      * @param transliteratedMessage the transliterated message ({@link Transliterator})
-     * @param serverAlias map of current server -> server name used for %prefix and %suffix
+     * @param serverAlias map of current server -&gt; server name used for %prefix and %suffix
      * @return the formatted message
      */
     public static @NotNull String format(

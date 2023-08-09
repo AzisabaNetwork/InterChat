@@ -40,7 +40,7 @@ public abstract class Packet<T extends PacketListener> {
 
     /**
      * Reads a string from the buffer.
-     * @throws IllegalArgumentException if the string is not valid (e.g. length is < 0)
+     * @throws IllegalArgumentException if the string is not valid (e.g. length is &lt; 0)
      * @param buf the buffer
      * @return the string
      */
@@ -97,7 +97,7 @@ public abstract class Packet<T extends PacketListener> {
      * @param reader the reader
      * @return the list
      * @param <T> the type
-     * @throws IllegalArgumentException if length is < 0
+     * @throws IllegalArgumentException if length is &lt; 0
      */
     @NotNull
     public static <T> List<T> readList(@NotNull ByteBuf buf, @NotNull Function<ByteBuf, T> reader) {

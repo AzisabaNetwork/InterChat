@@ -60,7 +60,7 @@ public class PubSubHandler implements Closeable {
             try (Jedis jedis = jedisPool.getResource()) {
                 jedis.subscribe(listener, CHANNEL);
             } catch (JedisConnectionException e) {
-                e.printStackTrace();
+                Logger.getCurrentLogger().warn("Could not subscribe", e);
             }
         } catch (Exception e) {
             logger.warn("Failed to get Jedis resource", e);
@@ -87,7 +87,7 @@ public class PubSubHandler implements Closeable {
                     listener.unsubscribe();
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                Logger.getCurrentLogger().warn("ping loop", e);
             }
         }, 5, 5, TimeUnit.SECONDS);
     }
@@ -146,7 +146,7 @@ public class PubSubHandler implements Closeable {
                 handlePacket(namedPacket, buf.slice());
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Logger.getCurrentLogger().warn("Failed to handle message", e);
         } finally {
             if (buf.refCnt() > 0) {
                 buf.release();
@@ -222,7 +222,7 @@ public class PubSubHandler implements Closeable {
                 try {
                     consumer.accept(pattern);
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    Logger.getCurrentLogger().warn("consumer threw exception", e);
                 }
             }
         }

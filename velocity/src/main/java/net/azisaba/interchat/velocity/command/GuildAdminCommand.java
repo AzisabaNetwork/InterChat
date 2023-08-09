@@ -8,6 +8,7 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
+import net.azisaba.interchat.api.data.UserDataProvider;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildRole;
 import net.azisaba.interchat.api.network.Protocol;
@@ -34,6 +35,10 @@ public class GuildAdminCommand extends AbstractCommand {
     protected @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
         return literal("guildadmin")
                 .requires(source -> source.hasPermission("interchat.guildadmin"))
+                .then(literal("user-data")
+                        .requires(source -> source instanceof Player && source.hasPermission("interchat.guildadmin.user-data"))
+                        .executes(ctx -> executeUserData(ctx.getSource()))
+                )
                 .then(literal("clear-cache")
                         .requires(source -> source.hasPermission("interchat.guildadmin.clear-cache"))
                         .executes(ctx -> executeClearCache(ctx.getSource()))
@@ -72,8 +77,25 @@ public class GuildAdminCommand extends AbstractCommand {
                                                 .executes(ctx -> executeGuildRename(ctx.getSource(), GuildArgumentType.get(ctx, "guild", false), StringArgumentType.getString(ctx, "name")))
                                         )
                                 )
+                                .then(literal("info")
+                                        .executes(ctx -> GuildCommand.executeInfo((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", true)))
+                                )
                         )
                 );
+    }
+
+    private static int executeUserData(@NotNull CommandSource source) {
+        if (!(source instanceof Player player)) {
+            return 0;
+        }
+        UserDataProvider userDataProvider = InterChatProvider.get().getUserDataProvider();
+        player.sendMessage(Component.text("Prefixes:"));
+        userDataProvider.getPrefix(player.getUniqueId()).forEach((server, prefix) ->
+                player.sendMessage(Component.text("  " + server + ": " + prefix)));
+        player.sendMessage(Component.text("Suffixes:"));
+        userDataProvider.getSuffix(player.getUniqueId()).forEach((server, suffix) ->
+                player.sendMessage(Component.text("  " + server + ": " + suffix)));
+        return 1;
     }
 
     private static int executeClearCache(@NotNull CommandSource source) {

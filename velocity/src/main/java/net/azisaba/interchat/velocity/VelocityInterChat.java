@@ -1,5 +1,8 @@
 package net.azisaba.interchat.velocity;
 
+import net.azisaba.interchat.api.data.DummyUserDataProvider;
+import net.azisaba.interchat.api.data.LuckPermsUserDataProvider;
+import net.azisaba.interchat.api.data.UserDataProvider;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.InterChat;
 import net.azisaba.interchat.api.Logger;
@@ -45,5 +48,13 @@ public final class VelocityInterChat implements InterChat {
     @Override
     public @NotNull Executor getAsyncExecutor() {
         return asyncExecutor;
+    }
+
+    @Override
+    public @NotNull UserDataProvider getUserDataProvider() {
+        if (LuckPermsUserDataProvider.isAvailable()) {
+            return new LuckPermsUserDataProvider();
+        }
+        return DummyUserDataProvider.INSTANCE;
     }
 }

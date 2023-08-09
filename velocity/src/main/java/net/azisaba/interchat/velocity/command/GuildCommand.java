@@ -10,6 +10,8 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.network.ProtocolVersion;
 import com.velocitypowered.api.proxy.Player;
+import com.velocitypowered.api.proxy.ServerConnection;
+import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.guild.Guild;
@@ -98,8 +100,9 @@ public class GuildCommand extends AbstractCommand {
     );
     private static final Set<String> PLAYER_NAME_VARIABLES = new HashSet<>(Arrays.asList("%playername", "%username", "%username-n"));
     private static final Set<String> FORMAT_VARIABLES = new HashSet<>(Arrays.asList(
-            "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace"
-    ));
+            "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace",
+            "%prefix", "%{prefix:server}", "%{prefix:server:default}", "%suffix", "%{suffix:server}", "%{suffix:server:default}"
+            ));
     private static final ConcurrentHashMap<UUID, Long> LAST_GUILD_CREATED = new ConcurrentHashMap<>();
     public static @NotNull SuggestionProvider<CommandSource> getChatSuggestionProvider(ChatSuggestionGuildProvider chatSuggestionGuildProvider) {
         return (context, builder) -> {
@@ -130,7 +133,7 @@ public class GuildCommand extends AbstractCommand {
                     } catch (IndexOutOfBoundsException ignored) {}
                 }
             }
-            String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire);
+            String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire, VelocityPlugin.getPlugin().getServerAlias());
             builder.suggest(formatted.replace('&', '§'));
             if (!suggestions.isEmpty()) {
                 suggestions = new ArrayList<>(suggestions);
@@ -160,14 +163,19 @@ public class GuildCommand extends AbstractCommand {
                         .then(argument("format", StringArgumentType.greedyString())
                                 .suggests((context, builder) -> {
                                     // suggest variables
-                                    FORMAT_VARIABLES.forEach(builder::suggest);
+                                    String last = context.getLastChild().getInput().substring(context.getLastChild().getInput().lastIndexOf(' ') + 1);
+                                    FORMAT_VARIABLES.stream().filter(s -> s.startsWith(last)).forEach(builder::suggest);
 
                                     // format preview
-                                    User sampleUser = SAMPLE_USERS.apply(((Player) context.getSource()).getUsername());
+                                    UUID uuid = ((Player) context.getSource()).getUniqueId();
+                                    String server = ((Player) context.getSource()).getCurrentServer().map(ServerConnection::getServerInfo).map(ServerInfo::getName).orElse("");
+                                    Guild guild = ACTUAL_GUILD.apply(uuid);
+                                    User user = ACTUAL_USER.apply(uuid);
+                                    GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
                                     String format = context.getLastChild()
                                             .getInput()
                                             .replaceFirst(COMMAND_NAME + " format ", "");
-                                    String formatted = "§r" + MessageFormatter.format(format, SAMPLE_GUILD, "test-server", sampleUser, "nicked user", "tesuto", "テスト");
+                                    String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), "tesuto", "テスト", VelocityPlugin.getPlugin().getServerAlias());
                                     return builder.suggest(formatted.replace('&', '§')).buildFuture();
                                 })
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
@@ -842,7 +850,7 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
-    private static int executeInfo(@NotNull Player player, @Nullable Guild guild) {
+    static int executeInfo(@NotNull Player player, @Nullable Guild guild) {
         if (guild == null) {
             long selectedGuild = ensureSelected(player);
             if (selectedGuild == -1) return 0;
@@ -863,7 +871,12 @@ public class GuildCommand extends AbstractCommand {
                 .fetchUsers(members.stream().map(GuildMember::uuid).collect(Collectors.toList()))
                 .join()
                 .forEach(user -> users.put(user.id(), user));
-        player.sendMessage(VMessages.formatComponent(player, "command.guild.info.title", guild.name()).color(NamedTextColor.GOLD));
+        Component titleComponent = VMessages.formatComponent(player, "command.guild.info.title", guild.name()).color(NamedTextColor.GOLD);
+        if (guild.deleted()) {
+            player.sendMessage(titleComponent.append(Component.text(" (Deleted)", NamedTextColor.RED)));
+        } else {
+            player.sendMessage(titleComponent);
+        }
         player.sendMessage(VMessages.formatComponent(player, "command.guild.info.member_count", members.size(), guild.capacity()).color(NamedTextColor.GOLD));
         for (GuildRole role : GuildRole.values()) {
             String players =

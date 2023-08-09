@@ -4,6 +4,7 @@ import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -31,9 +32,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
 
 @Plugin(id = "interchat", name = "InterChat", version = "1.0.0-SNAPSHOT", authors = "Azisaba Network",
-        url = "https://github.com/AzisabaNetwork/InterChat", description = "Adds guild-like features to Velocity servers")
+        url = "https://github.com/AzisabaNetwork/InterChat", description = "Adds guild-like features to Velocity servers",
+        dependencies = {@Dependency(id = "luckperms", optional = true)})
 public class VelocityPlugin {
     private static VelocityPlugin plugin;
     private final ProxyPacketListener packetListener = new ProxyPacketListenerImpl(this);
@@ -43,6 +48,7 @@ public class VelocityPlugin {
     private final JedisBox jedisBox;
     private final DatabaseManager databaseManager;
     private final DatabaseConfig databaseConfig;
+    private final Map<String, String> serverAlias = new HashMap<>();
 
     @Inject
     public VelocityPlugin(@NotNull ProxyServer server, @NotNull Logger logger, @DataDirectory @NotNull Path dataDirectory) throws IOException, SQLException {
@@ -57,6 +63,9 @@ public class VelocityPlugin {
         MapEx<Object, Object> databaseConfig = config.getMap("database");
         if (databaseConfig == null) {
             throw new RuntimeException("database section is not found in config.yml");
+        }
+        if (config.getMap("server-alias") != null) {
+            Objects.requireNonNull(config.getMap("server-alias")).forEach((k, v) -> serverAlias.put(String.valueOf(k), String.valueOf(v)));
         }
 
         logger.info("Connecting to database...");
@@ -147,5 +156,9 @@ public class VelocityPlugin {
     @NotNull
     public static ProxyServer getProxyServer() {
         return getPlugin().getServer();
+    }
+
+    public @NotNull Map<String, String> getServerAlias() {
+        return serverAlias;
     }
 }

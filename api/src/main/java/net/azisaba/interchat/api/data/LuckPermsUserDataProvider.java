@@ -30,6 +30,7 @@ public class LuckPermsUserDataProvider implements UserDataProvider {
         LuckPerms api = LuckPermsProvider.get();
         User user = api.getUserManager().loadUser(uuid).join();
         List<Map.Entry<String, Set<String>>> groupServerMap = new ArrayList<>();
+        Map<String, Integer> weightOverride = new HashMap<>();
         for (Node node : user.data().toCollection()) {
             if (node.getKey().startsWith("group.")) {
                 String groupName = node.getKey().substring("group.".length());
@@ -53,11 +54,15 @@ public class LuckPermsUserDataProvider implements UserDataProvider {
         for (Map.Entry<String, Set<String>> entry : new ArrayList<>(groupServerMap)) {
             api.getGroupManager().loadGroup(entry.getKey()).join().ifPresent(group ->
                     group.getInheritedGroups(QueryOptions.builder(QueryMode.NON_CONTEXTUAL).build())
-                            .forEach(inheritedGroup -> groupServerMap.add(new AbstractMap.SimpleImmutableEntry<>(inheritedGroup.getName(), entry.getValue()))));
+                            .forEach(inheritedGroup -> {
+                                groupServerMap.add(new AbstractMap.SimpleImmutableEntry<>(inheritedGroup.getName(), entry.getValue()));
+                                int currentWeight = weightOverride.getOrDefault(inheritedGroup.getName(), 0);
+                                weightOverride.put(inheritedGroup.getName(), Math.max(currentWeight, group.getWeight().orElse(0)));
+                            }));
         }
         user.getInheritedGroups(QueryOptions.builder(QueryMode.NON_CONTEXTUAL).flag(Flag.RESOLVE_INHERITANCE, true).build())
                 .forEach(group -> {
-                    int groupWeight = group.getWeight().orElse(0);
+                    int groupWeight = Math.min(weightOverride.getOrDefault(group.getName(), Integer.MAX_VALUE), group.getWeight().orElse(0));
                     for (Node node : group.data().toCollection()) {
                         if (clazz.isInstance(node)) {
                             // prefix/suffix node assigned to group

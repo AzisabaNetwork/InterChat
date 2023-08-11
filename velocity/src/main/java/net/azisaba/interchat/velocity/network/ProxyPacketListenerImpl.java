@@ -6,13 +6,7 @@ import net.azisaba.interchat.api.guild.GuildInviteResult;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.network.ProxyPacketListener;
-import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
-import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
-import net.azisaba.interchat.api.network.protocol.GuildJoinPacket;
-import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
-import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
-import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
-import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
+import net.azisaba.interchat.api.network.protocol.*;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
 import net.azisaba.interchat.api.user.UserManager;
@@ -182,6 +176,25 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
                 Component component =
                         VMessages.formatComponent(player, "guild.kicked", actor.name(), user.name(), guild.name())
+                                .color(NamedTextColor.GOLD);
+                player.sendMessage(component);
+            }));
+        });
+    }
+
+    @Override
+    public void handleGuildBan(@NotNull GuildBanPacket packet) {
+        CompletableFuture<Guild> guildFuture = plugin.getAPI().getGuildManager().fetchGuildById(packet.guildId());
+        CompletableFuture<User> actorFuture = plugin.getAPI().getUserManager().fetchUser(packet.actor());
+        CompletableFuture<User> userFuture = plugin.getAPI().getUserManager().fetchUser(packet.player());
+        AsyncUtil.collectAsync(guildFuture, actorFuture, userFuture, (guild, actor, user) -> {
+            if (guild == null || actor == null || user == null) {
+                return;
+            }
+            List<GuildMember> members = guild.getMembers().join();
+            members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
+                Component component =
+                        VMessages.formatComponent(player, "guild.banned", actor.name(), user.name(), guild.name(), packet.reason())
                                 .color(NamedTextColor.GOLD);
                 player.sendMessage(component);
             }));

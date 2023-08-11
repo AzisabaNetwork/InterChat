@@ -151,9 +151,9 @@ public abstract class AbstractCommand {
     );
 
     @Contract(pure = true)
-    public static @NotNull SuggestionProvider<CommandSource> suggestMembersOfGuild(@Nullable GuildRole role) {
+    public static @NotNull SuggestionProvider<CommandSource> suggestMembersOfGuild(@Nullable GuildRole requiredRole) {
         return (ctx, builder) -> {
-            if (role != null && !hasRoleInSelectedGuild(ctx.getSource(), role)) {
+            if (requiredRole != null && !hasRoleInSelectedGuild(ctx.getSource(), requiredRole)) {
                 return Suggestions.empty();
             }
             UUID uuid = ((Player) ctx.getSource()).getUniqueId();

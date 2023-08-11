@@ -62,6 +62,13 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `description` TEXT NOT NULL," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_bans` (" +
+                    "  `guild_id` BIGINT NOT NULL," +
+                    "  `uuid` VARCHAR(36) NOT NULL," +
+                    "  `reason` VARCHAR(255)," +
+                    "  `reason_public` TINYINT(1) NOT NULL," +
+                    "  UNIQUE KEY (guild_id, uuid)" +
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `players` (" +
                     "  `id` VARCHAR(36) NOT NULL," +
                     "  `name` VARCHAR(36) NOT NULL," +
@@ -98,6 +105,16 @@ public final class DatabaseManager implements QueryExecutor {
     public void query(@Language("SQL") @NotNull String sql, @NotNull SQLThrowableConsumer<PreparedStatement> action) throws SQLException {
         use(connection -> {
             try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                action.accept(statement);
+            }
+        });
+    }
+
+    @Contract(pure = true)
+    @Override
+    public void queryWithGeneratedKeys(@NotNull String sql, @NotNull SQLThrowableConsumer<PreparedStatement> action) throws SQLException {
+        use(connection -> {
+            try (PreparedStatement statement = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 action.accept(statement);
             }
         });

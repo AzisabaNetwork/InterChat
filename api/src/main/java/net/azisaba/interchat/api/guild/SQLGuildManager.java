@@ -7,21 +7,45 @@ import net.azisaba.interchat.api.util.ResultSetUtil;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 public class SQLGuildManager implements GuildManager {
     protected final QueryExecutor queryExecutor;
-    
+
     public SQLGuildManager(@NotNull QueryExecutor queryExecutor) {
         this.queryExecutor = Objects.requireNonNull(queryExecutor, "queryExecutor");
     }
-    
+
+    @Override
+    public @NotNull CompletableFuture<Optional<Guild>> createGuild(@NotNull String name, @NotNull String format) {
+        CompletableFuture<Optional<Guild>> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                queryExecutor.queryWithGeneratedKeys("INSERT INTO `guilds` (`name`, `format`) VALUES (?, ?)", stmt -> {
+                    stmt.setString(1, name);
+                    stmt.setString(2, format);
+                    if (stmt.executeUpdate() == 0) {
+                        future.complete(Optional.empty());
+                    }
+                    try (ResultSet keys = stmt.getGeneratedKeys()) {
+                        if (keys.next()) {
+                            future.complete(Optional.of(fetchGuildById(keys.getLong(1)).join()));
+                        } else {
+                            future.complete(Optional.empty());
+                        }
+                    }
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
     @Override
     public @NotNull CompletableFuture<Guild> fetchGuildById(long id) {
         CompletableFuture<Guild> future = new CompletableFuture<>();
@@ -267,5 +291,88 @@ public class SQLGuildManager implements GuildManager {
     @Override
     public @NotNull CompletableFuture<Void> deleteInvite(@NotNull GuildInvite invite) {
         return deleteInvite(invite.guildId(), invite.target());
+    }
+
+    @Override
+    public @NotNull CompletableFuture<GuildBan> createBan(long guildId, @NotNull UUID uuid, @Nullable String reason, boolean reasonPublic) {
+        CompletableFuture<GuildBan> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                queryExecutor.query("INSERT INTO `guild_bans` (`guild_id`, `uuid`, `reason`, `reason_public`) VALUES (?, ?, ?, ?)", stmt -> {
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    stmt.setString(3, reason);
+                    stmt.setBoolean(4, reasonPublic);
+                    stmt.executeUpdate();
+                    future.complete(new GuildBan(guildId, uuid, reason, reasonPublic));
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Collection<GuildBan>> getBans(long guildId) {
+        CompletableFuture<Collection<GuildBan>> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                Set<GuildBan> bans = new HashSet<>();
+                queryExecutor.query("SELECT * FROM `guild_bans` WHERE `guild_id` = ?", stmt -> {
+                    stmt.setLong(1, guildId);
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        while (rs.next()) {
+                            bans.add(GuildBan.createByResultSet(rs));
+                        }
+                    }
+                });
+                future.complete(bans);
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Optional<GuildBan>> getBan(long guildId, @NotNull UUID uuid) {
+        CompletableFuture<Optional<GuildBan>> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                queryExecutor.query("SELECT * FROM `guild_bans` WHERE `guild_id` = ? AND `uuid` = ? LIMIT 1", stmt -> {
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    try (ResultSet rs = stmt.executeQuery()) {
+                        if (rs.next()) {
+                            future.complete(Optional.of(GuildBan.createByResultSet(rs)));
+                        } else {
+                            future.complete(Optional.empty());
+                        }
+                    }
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Void> deleteBan(long guildId, @NotNull UUID uuid) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        InterChatProvider.get().getAsyncExecutor().execute(() -> {
+            try {
+                queryExecutor.query("DELETE FROM `guild_bans` WHERE `guild_id` = ? AND `uuid` = ? LIMIT 1", stmt -> {
+                    stmt.setLong(1, guildId);
+                    stmt.setString(2, uuid.toString());
+                    stmt.executeUpdate();
+                    future.complete(null);
+                });
+            } catch (Throwable t) {
+                future.completeExceptionally(t);
+            }
+        });
+        return future;
     }
 }

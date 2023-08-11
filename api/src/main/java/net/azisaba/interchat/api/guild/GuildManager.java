@@ -2,12 +2,24 @@ package net.azisaba.interchat.api.guild;
 
 import net.azisaba.interchat.api.user.User;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 public interface GuildManager {
+    /**
+     * Creates a guild.
+     * @param name guild name
+     * @param format format of the chat
+     * @return guild if successful, empty otherwise
+     */
+    @NotNull
+    CompletableFuture<Optional<Guild>> createGuild(@NotNull String name, @NotNull String format);
+
     @NotNull
     CompletableFuture<Guild> fetchGuildById(long id);
 
@@ -72,4 +84,36 @@ public interface GuildManager {
 
     @NotNull
     CompletableFuture<Void> deleteInvite(@NotNull GuildInvite invite);
+
+    @NotNull
+    CompletableFuture<GuildBan> createBan(long guildId, @NotNull UUID uuid, @Nullable String reason, boolean reasonPublic);
+
+    @NotNull
+    CompletableFuture<Collection<GuildBan>> getBans(long guildId);
+
+    @NotNull
+    default CompletableFuture<Collection<GuildBan>> getBans(@NotNull Guild guild) {
+        return getBans(guild.id());
+    }
+
+    @NotNull
+    CompletableFuture<Optional<GuildBan>> getBan(long guildId, @NotNull UUID uuid);
+
+    @NotNull
+    default CompletableFuture<Optional<GuildBan>> getBan(@NotNull Guild guild, @NotNull UUID uuid) {
+        return getBan(guild.id(), uuid);
+    }
+
+    @NotNull
+    default CompletableFuture<Optional<GuildBan>> getBan(@NotNull Guild guild, @NotNull User user) {
+        return getBan(guild.id(), user.id());
+    }
+
+    @NotNull
+    CompletableFuture<Void> deleteBan(long guildId, @NotNull UUID uuid);
+
+    @NotNull
+    default CompletableFuture<Void> deleteBan(@NotNull GuildBan ban) {
+        return deleteBan(ban.guildId(), ban.uuid());
+    }
 }

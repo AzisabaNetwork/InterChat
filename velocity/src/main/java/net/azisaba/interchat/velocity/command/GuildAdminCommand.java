@@ -147,11 +147,15 @@ public class GuildAdminCommand extends AbstractCommand {
             source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.hard_delete.confirm.line2", "/guildadmin guild " + guild.name() + " hard-delete " + actualHash).color(NamedTextColor.RED));
         } else {
             try {
-                DatabaseManager.get().query("DELETE FROM `guilds` WHERE `id` = ?", stmt -> {
+                DatabaseManager.get().query("DELETE FROM `guild_bans` WHERE `guild_id` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });
                 DatabaseManager.get().query("DELETE FROM `guild_members` WHERE `guild_id` = ?", stmt -> {
+                    stmt.setLong(1, guild.id());
+                    stmt.executeUpdate();
+                });
+                DatabaseManager.get().query("DELETE FROM `guilds` WHERE `id` = ?", stmt -> {
                     stmt.setLong(1, guild.id());
                     stmt.executeUpdate();
                 });

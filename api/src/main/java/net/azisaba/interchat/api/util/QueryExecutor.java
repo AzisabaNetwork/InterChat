@@ -8,4 +8,5 @@ import java.sql.SQLException;
 
 public interface QueryExecutor {
     void query(@Language("SQL") @NotNull String sql, @NotNull SQLThrowableConsumer<PreparedStatement> action) throws SQLException;
+    void queryWithGeneratedKeys(@Language("SQL") @NotNull String sql, @NotNull SQLThrowableConsumer<PreparedStatement> action) throws SQLException;
 }

@@ -14,19 +14,9 @@ import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
-import net.azisaba.interchat.api.guild.Guild;
-import net.azisaba.interchat.api.guild.GuildInvite;
-import net.azisaba.interchat.api.guild.GuildInviteResult;
-import net.azisaba.interchat.api.guild.GuildLog;
-import net.azisaba.interchat.api.guild.GuildMember;
-import net.azisaba.interchat.api.guild.GuildRole;
+import net.azisaba.interchat.api.guild.*;
 import net.azisaba.interchat.api.network.Protocol;
-import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
-import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
-import net.azisaba.interchat.api.network.protocol.GuildJoinPacket;
-import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
-import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
-import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
+import net.azisaba.interchat.api.network.protocol.*;
 import net.azisaba.interchat.api.text.KanaTranslator;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
@@ -51,26 +41,12 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.annotations.Range;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.AbstractMap;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -78,17 +54,18 @@ import java.util.stream.Collectors;
 public class GuildCommand extends AbstractCommand {
     private static final int LINK_EXPIRE_MINUTES = 10;
     private static final List<String> BLOCKED_GUILD_NAMES =
-            Arrays.asList("create", "format", "chat", "delete", "select", "role", "invite", "kick", "leave",
-                    "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
-                    "linkdiscord", "unlinkdiscord", "nick", "open", "join");
+            Arrays.asList(
+                    // commands
+                    "create", "format", "chat", "delete", "select", "role", "invite", "kick", "ban", "ban-public", "unban", "pardon",
+                    "leave", "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
+                    "linkdiscord", "unlinkdiscord", "nick", "open", "join",
+                    // reserved names
+                    "permission", "permissions", "force-nick"
+            );
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     public static final String COMMAND_NAME = "guild_test";
     private static final Map<UUID, Long> LAST_GUILD_INVITE = new ConcurrentHashMap<>();
-    private static final Guild SAMPLE_GUILD = new Guild(0, "test", "", 100, false, false);
-    private static final Function<String, User> SAMPLE_USERS = Functions.memoize(s ->
-            new User(new UUID(0, 0), s, -1, -1, false, false)
-    );
     private static final Function<UUID, User> ACTUAL_USER = Functions.memoize(1000 * 10, uuid ->
             InterChatProvider.get().getUserManager().fetchUser(uuid).join()
     );
@@ -272,7 +249,48 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.kick"))
                         .then(argument("member", GuildMemberArgumentType.guildMember())
                                 .suggests(suggestMembersOfGuild(GuildRole.MODERATOR))
-                                .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR)))
+                                .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), null, false, false))
+                                .then(argument("reason", StringArgumentType.greedyString())
+                                        .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), StringArgumentType.getString(ctx, "reason"), false, false))
+                                )
+                        )
+                )
+                // moderator
+                .then(literal("ban")
+                        .requires(source -> source.hasPermission("interchat.guild.ban"))
+                        .then(argument("member", GuildMemberArgumentType.guildMember())
+                                .suggests(suggestMembersOfGuild(GuildRole.MODERATOR))
+                                .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), null, false, true))
+                                .then(argument("reason", StringArgumentType.greedyString())
+                                        .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), StringArgumentType.getString(ctx, "reason"), false, true))
+                                )
+                        )
+                )
+                // moderator
+                .then(literal("ban-public")
+                        .requires(source -> source.hasPermission("interchat.guild.ban"))
+                        .then(argument("member", GuildMemberArgumentType.guildMember())
+                                .suggests(suggestMembersOfGuild(GuildRole.MODERATOR))
+                                .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), null, false, true))
+                                .then(argument("reason", StringArgumentType.greedyString())
+                                        .executes(ctx -> executeKick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), StringArgumentType.getString(ctx, "reason"), true, true))
+                                )
+                        )
+                )
+                // moderator
+                .then(literal("unban")
+                        .requires(source -> source.hasPermission("interchat.guild.unban"))
+                        .then(argument("player", StringArgumentType.word())
+                                .suggests(suggestPlayers())
+                                .executes(ctx -> executeUnban((Player) ctx.getSource(), ctx))
+                        )
+                )
+                // moderator (alias for unban)
+                .then(literal("pardon")
+                        .requires(source -> source.hasPermission("interchat.guild.unban"))
+                        .then(argument("player", StringArgumentType.word())
+                                .suggests(suggestPlayers())
+                                .executes(ctx -> executeUnban((Player) ctx.getSource(), ctx))
                         )
                 )
                 // member
@@ -340,6 +358,25 @@ public class GuildCommand extends AbstractCommand {
                 );
     }
 
+    /**
+     * Checks if the player is banned from the guild. This method sends the "banend" message to player if banned.
+     * @param guildId the guild
+     * @param player the player
+     * @return true if banned; false otherwise
+     */
+    private static boolean checkBan(long guildId, @NotNull Player player) {
+        Optional<GuildBan> ban = InterChatProvider.get().getGuildManager().getBan(guildId, player.getUniqueId()).join();
+        if (ban.isPresent()) {
+            if (ban.get().reasonPublic()) {
+                player.sendMessage(VMessages.formatComponent(player, "command.error.banned_with_reason", ban.get().reason()).color(NamedTextColor.RED));
+            } else {
+                player.sendMessage(VMessages.formatComponent(player, "command.error.banned").color(NamedTextColor.RED));
+            }
+            return true;
+        }
+        return false;
+    }
+
     private static int executeCreate(@NotNull Player player, @NotNull String name) {
         // check last created guild
         if (LAST_GUILD_CREATED.getOrDefault(player.getUniqueId(), 0L) + 1000 * 60 * 60 > System.currentTimeMillis()) {
@@ -367,27 +404,12 @@ public class GuildCommand extends AbstractCommand {
         try {
             LAST_GUILD_CREATED.put(player.getUniqueId(), System.currentTimeMillis());
             DatabaseManager db = DatabaseManager.get();
-            long guildId;
-            // create guild
-            try (
-                    Connection connection = db.getConnection();
-                    PreparedStatement stmt = connection.prepareStatement("INSERT INTO `guilds` (`name`, `format`) VALUES (?, ?)", Statement.RETURN_GENERATED_KEYS)
-            ) {
-                stmt.setString(1, name);
-                stmt.setString(2, DEFAULT_FORMAT);
-                if (stmt.executeUpdate() == 0) {
-                    player.sendMessage(VMessages.formatComponent(player, "command.guild.create.fail").color(NamedTextColor.RED));
-                    return 0;
-                }
-                ResultSet keys = stmt.getGeneratedKeys();
-                if (keys.next()) {
-                    guildId = keys.getLong(1);
-                } else {
-                    player.sendMessage(VMessages.formatComponent(player, "command.guild.create.fail").color(NamedTextColor.RED));
-                    return 0;
-                }
-                keys.close();
+            Optional<Guild> guild = InterChatProvider.get().getGuildManager().createGuild(name, DEFAULT_FORMAT).join();
+            if (guild.isEmpty()) {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.create.fail").color(NamedTextColor.RED));
+                return 0;
             }
+            long guildId = guild.get().id();
             db.submitLog(guildId, player, "Created guild");
             // mark the player as the owner of the guild
             db.query("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`) VALUES (?, ?, ?)", stmt -> {
@@ -641,6 +663,17 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.invite.not_accepting").color(NamedTextColor.RED));
             return 0;
         }
+        // check if target player is banned from guild
+        Optional<GuildBan> ban = InterChatProvider.get().getGuildManager().getBan(selectedGuild, targetUUID).join();
+        if (ban.isPresent()) {
+            if (ban.get().reasonPublic() || GuildRole.MODERATOR.ordinal() >= member.role().ordinal()) {
+                // if moderator or higher
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.invite.banned_with_reason", ban.get().reason()).color(NamedTextColor.RED));
+            } else {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.invite.banned").color(NamedTextColor.RED));
+            }
+            return 0;
+        }
         // add invite entry to database
         try {
             DatabaseManager.get().query("INSERT INTO `guild_invites` (`guild_id`, `target`, `actor`, `expires_at`) VALUES (?, ?, ?, ?)", stmt -> {
@@ -684,6 +717,9 @@ public class GuildCommand extends AbstractCommand {
         }
         // accept or reject
         if (result == GuildInviteResult.ACCEPTED) {
+            if (checkBan(guild.id(), player)) {
+                return 0;
+            }
             // accepted
             new GuildMember(guild.id(), invite.target(), GuildRole.MEMBER).update().join();
             User actor = InterChatProvider.get().getUserManager().fetchUser(invite.actor()).join();
@@ -705,7 +741,7 @@ public class GuildCommand extends AbstractCommand {
                 VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
                 new GuildInviteResultPacket(invite, result)
         );
-        return 0;
+        return 1;
     }
 
     private static int executeToggleAcceptingInvites(@NotNull Player player) {
@@ -746,6 +782,9 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", guildName).color(NamedTextColor.RED));
             return 0;
         }
+        if (checkBan(guild.id(), player)) {
+            return 0;
+        }
         // join the guild
         new GuildMember(guild.id(), player.getUniqueId(), GuildRole.MEMBER).update().join();
         // set selected guild
@@ -771,7 +810,8 @@ public class GuildCommand extends AbstractCommand {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
         GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
-        if (self.role() == GuildRole.OWNER) {
+        int memberCount = InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size();
+        if (memberCount > 1 && self.role() == GuildRole.OWNER) {
             long owners =
                     InterChatProvider.get()
                             .getGuildManager()
@@ -788,7 +828,7 @@ public class GuildCommand extends AbstractCommand {
                 return 0;
             }
         }
-        if (InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size() == 1) {
+        if (memberCount == 1) {
             // if there is only one member, delete the guild.
             VelocityGuildManager.markDeleted(player, selectedGuild);
         }
@@ -801,10 +841,10 @@ public class GuildCommand extends AbstractCommand {
                 VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
                 new GuildLeavePacket(selectedGuild, player.getUniqueId())
         );
-        return 0;
+        return 1;
     }
 
-    private static int executeKick(@NotNull Player player, @NotNull GuildMember member) {
+    private static int executeKick(@NotNull Player player, @NotNull GuildMember member, @Nullable String reason, boolean reasonPublic, boolean ban) {
         // "player" has moderator or higher permissions
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
@@ -817,7 +857,8 @@ public class GuildCommand extends AbstractCommand {
                 return 0;
             }
         }
-        if (member.role() == GuildRole.OWNER) {
+        int memberCount = InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size();
+        if (memberCount > 1 && member.role() == GuildRole.OWNER) {
             long owners =
                     InterChatProvider.get()
                             .getGuildManager()
@@ -834,20 +875,53 @@ public class GuildCommand extends AbstractCommand {
                 return 0;
             }
         }
-        if (InterChatProvider.get().getGuildManager().getMembers(selectedGuild).join().size() == 1) {
+        if (memberCount == 1) {
             // if there is only one member, delete the guild.
             VelocityGuildManager.markDeleted(player, selectedGuild);
         }
         // kick member
         InterChatProvider.get().getGuildManager().removeMember(selectedGuild, member.uuid()).join();
         User user = member.getUser().join();
-        DatabaseManager.get().submitLog(selectedGuild, player, "Kicked " + member.uuid() + " (" + user.name() + ")");
-        // notify others
-        Protocol.GUILD_KICK.send(
-                VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
-                new GuildKickPacket(selectedGuild, player.getUniqueId(), member.uuid())
-        );
-        return 0;
+        if (ban) {
+            InterChatProvider.get().getGuildManager().createBan(selectedGuild, member.uuid(), reason, reasonPublic).join();
+            DatabaseManager.get().submitLog(selectedGuild, player, "Banned " + member.uuid() + " (" + user.name() + ") for: " + reason);
+            // notify others
+            Protocol.GUILD_BAN.send(
+                    VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
+                    new GuildBanPacket(selectedGuild, player.getUniqueId(), member.uuid(), reason)
+            );
+        } else {
+            DatabaseManager.get().submitLog(selectedGuild, player, "Kicked " + member.uuid() + " (" + user.name() + ") for: " + reason);
+            // notify others
+            Protocol.GUILD_KICK.send(
+                    VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
+                    new GuildKickPacket(selectedGuild, player.getUniqueId(), member.uuid())
+            );
+        }
+        return 1;
+    }
+
+    private static int executeUnban(@NotNull Player player, @NotNull CommandContext<CommandSource> ctx) throws CommandSyntaxException {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (GuildRole.MODERATOR.ordinal() < member.role().ordinal()) {
+            // member must be at least moderator to change the format
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.unban.not_moderator").color(NamedTextColor.RED));
+            return 0;
+        }
+        UUID targetUUID = UUIDArgumentType.getPlayerWithAPI(ctx, "player");
+        // check if player is banned
+        Optional<GuildBan> ban = InterChatProvider.get().getGuildManager().getBan(selectedGuild, targetUUID).join();
+        if (ban.isEmpty()) {
+            // not banned
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.unban.not_banned").color(NamedTextColor.RED));
+            return 0;
+        }
+        ban.get().delete().join();
+        DatabaseManager.get().submitLog(selectedGuild, player, "Unbanned " + targetUUID);
+        player.sendMessage(VMessages.formatComponent(player, "command.guild.unban.success", targetUUID.toString()).color(NamedTextColor.GREEN));
+        return 1;
     }
 
     static int executeInfo(@NotNull Player player, @Nullable Guild guild) {

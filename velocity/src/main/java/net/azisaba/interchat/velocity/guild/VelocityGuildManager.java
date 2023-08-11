@@ -2,6 +2,7 @@ package net.azisaba.interchat.velocity.guild;
 
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
+import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.guild.SQLGuildManager;
 import net.azisaba.interchat.api.network.Protocol;
@@ -45,7 +46,7 @@ public final class VelocityGuildManager extends SQLGuildManager implements Guild
             GuildSoftDeletePacket packet = new GuildSoftDeletePacket(guildId, uuid);
             VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_SOFT_DELETE.getName(), packet);
         } catch (SQLException e) {
-            e.printStackTrace();
+            Logger.getCurrentLogger().error("Failed to mark guild as deleted", e);
         }
     }
 }

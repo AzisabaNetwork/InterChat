@@ -7,7 +7,9 @@ import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -89,5 +91,20 @@ public final class Guild {
     @Contract(pure = true)
     public @NotNull CompletableFuture<GuildMember> getMember(@NotNull User user) {
         return InterChatProvider.get().getGuildManager().getMember(this, user);
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<Collection<GuildBan>> getBans() {
+        return InterChatProvider.get().getGuildManager().getBans(this);
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<Optional<GuildBan>> getBan(@NotNull UUID uuid) {
+        return InterChatProvider.get().getGuildManager().getBan(this, uuid);
+    }
+
+    @Contract(pure = true)
+    public @NotNull CompletableFuture<Optional<GuildBan>> getBan(@NotNull User user) {
+        return InterChatProvider.get().getGuildManager().getBan(this, user);
     }
 }

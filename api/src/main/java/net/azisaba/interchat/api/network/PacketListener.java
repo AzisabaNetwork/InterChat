@@ -1,12 +1,6 @@
 package net.azisaba.interchat.api.network;
 
-import net.azisaba.interchat.api.network.protocol.GuildInvitePacket;
-import net.azisaba.interchat.api.network.protocol.GuildInviteResultPacket;
-import net.azisaba.interchat.api.network.protocol.GuildJoinPacket;
-import net.azisaba.interchat.api.network.protocol.GuildKickPacket;
-import net.azisaba.interchat.api.network.protocol.GuildLeavePacket;
-import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
-import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
+import net.azisaba.interchat.api.network.protocol.*;
 import org.jetbrains.annotations.NotNull;
 
 public interface PacketListener {
@@ -16,5 +10,6 @@ public interface PacketListener {
     default void handleGuildInviteResult(@NotNull GuildInviteResultPacket packet) {}
     default void handleGuildLeave(@NotNull GuildLeavePacket packet) {}
     default void handleGuildKick(@NotNull GuildKickPacket packet) {}
+    default void handleGuildBan(@NotNull GuildBanPacket packet) {}
     default void handleGuildJoin(@NotNull GuildJoinPacket packet) {}
 }

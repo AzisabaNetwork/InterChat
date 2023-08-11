@@ -80,6 +80,8 @@ command.guild.link_discord.generate_code_failed: "Failed to generate the link co
 command.guild.unlink_discord.success: "Unlinked your Discord account."
 command.guild.nick.off: "Turned off the nickname."
 command.guild.nick.on: "Set your nickname to &r%s&a."
+command.guild.force_nick.off: "Cleared their nickname."
+command.guild.force_nick.on: "Set their nickname to &r%s&a."
 
 command.guildadmin.guild.hard_delete.confirm.line1: "Are you sure want to delete the guild %s permanently?"
 command.guildadmin.guild.hard_delete.confirm.line2: "This action is cannot be undone. If you are sure, type: %s"

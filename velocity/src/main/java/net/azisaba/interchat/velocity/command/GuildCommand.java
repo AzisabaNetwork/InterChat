@@ -58,9 +58,9 @@ public class GuildCommand extends AbstractCommand {
                     // commands
                     "create", "format", "chat", "delete", "select", "role", "invite", "kick", "ban", "ban-public", "unban", "pardon",
                     "leave", "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
-                    "linkdiscord", "unlinkdiscord", "nick", "open", "join",
+                    "linkdiscord", "unlinkdiscord", "nick", "force-nick", "open", "join",
                     // reserved names
-                    "permission", "permissions", "force-nick"
+                    "permission", "permissions"
             );
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
@@ -321,6 +321,17 @@ public class GuildCommand extends AbstractCommand {
                         .executes(ctx -> executeNick((Player) ctx.getSource(), null))
                         .then(argument("name", StringArgumentType.greedyString())
                                 .executes(ctx -> executeNick((Player) ctx.getSource(), StringArgumentType.getString(ctx, "name")))
+                        )
+                )
+                // owner
+                .then(literal("force-nick")
+                        .requires(source -> source.hasPermission("interchat.guild.force-nick"))
+                        .then(argument("member", GuildMemberArgumentType.guildMember())
+                                .suggests(suggestMembersOfGuild(GuildRole.MODERATOR))
+                                .executes(ctx -> executeForceNick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), null))
+                                .then(argument("name", StringArgumentType.greedyString())
+                                        .executes(ctx -> executeForceNick((Player) ctx.getSource(), GuildMemberArgumentType.get(ctx, "member", GuildRole.MODERATOR), StringArgumentType.getString(ctx, "name")))
+                                )
                         )
                 )
                 // everyone
@@ -1012,7 +1023,7 @@ public class GuildCommand extends AbstractCommand {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
-        return 0;
+        return 1;
     }
 
     public static int executeSetFocusedGuild(@NotNull Player player) {
@@ -1132,12 +1143,27 @@ public class GuildCommand extends AbstractCommand {
         GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
         if ("off".equals(name)) name = null;
         new GuildMember(member.guildId(), member.uuid(), member.role(), name).update();
+        DatabaseManager.get().submitLog(selectedGuild, player, "Changed nickname to " + name);
         if (name == null) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.nick.off").color(NamedTextColor.GREEN));
         } else {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.nick.on", name).color(NamedTextColor.GREEN));
         }
-        return 0;
+        return 1;
+    }
+
+    private static int executeForceNick(@NotNull Player player, @NotNull GuildMember member, @Nullable String name) {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        if ("off".equals(name)) name = null;
+        new GuildMember(member.guildId(), member.uuid(), member.role(), name).update();
+        DatabaseManager.get().submitLog(selectedGuild, player, "Changed nickname of " + member.uuid() + " to " + name);
+        if (name == null) {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.force_nick.off").color(NamedTextColor.GREEN));
+        } else {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.force_nick.on", name).color(NamedTextColor.GREEN));
+        }
+        return 1;
     }
 
     private static long ensureSelected(@NotNull Player player) {

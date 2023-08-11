@@ -80,6 +80,8 @@ command.guild.link_discord.generate_code_failed: "連携コードの生成に失
 command.guild.unlink_discord.success: "Discordとの連携を解除しました。"
 command.guild.nick.off: "ニックネームを削除しました。"
 command.guild.nick.on: "ニックネームを &r%s &aに設定しました。"
+command.guild.force_nick.off: "プレイヤーのニックネームを削除しました。"
+command.guild.force_nick.on: "プレイヤーのニックネームを &r%s &aに設定しました。"
 
 command.guildadmin.guild.hard_delete.confirm.line1: "本当にギルド(%s)を完全に削除しますか？"
 command.guildadmin.guild.hard_delete.confirm.line2: "この操作は元に戻せません。実行する場合はこのコマンドを実行してください: %s"

@@ -1,6 +1,7 @@
 package net.azisaba.interchat.velocity.command;
 
 import com.google.common.hash.Hashing;
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
@@ -82,6 +83,12 @@ public class GuildAdminCommand extends AbstractCommand {
                                 )
                                 .then(literal("info")
                                         .executes(ctx -> GuildCommand.executeInfo((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", true)))
+                                )
+                                .then(literal("log")
+                                        .executes(ctx -> GuildCommand.executeLog(GuildArgumentType.get(ctx, "guild", true).id(), (Player) ctx.getSource(), 0))
+                                        .then(argument("page", IntegerArgumentType.integer(0, Integer.MAX_VALUE))
+                                                .executes(ctx -> GuildCommand.executeLog(GuildArgumentType.get(ctx, "guild", true).id(), (Player) ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))
+                                        )
                                 )
                         )
                 );
@@ -227,6 +234,6 @@ public class GuildAdminCommand extends AbstractCommand {
             Logger.getCurrentLogger().error("Failed to rename guild {} to {}", guild.id(), newName, e);
             source.sendMessage(VMessages.formatComponent(source, "command.error.generic", e.getMessage()).color(NamedTextColor.RED));
         }
-        return 0;
+        return 1;
     }
 }

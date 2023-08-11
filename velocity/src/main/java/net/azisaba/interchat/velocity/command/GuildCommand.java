@@ -310,9 +310,9 @@ public class GuildCommand extends AbstractCommand {
                 // member
                 .then(literal("log")
                         .requires(source -> source.hasPermission("interchat.guild.log"))
-                        .executes(ctx -> executeLog((Player) ctx.getSource(), 0))
+                        .executes(ctx -> executeLog(-1, (Player) ctx.getSource(), 0))
                         .then(argument("page", IntegerArgumentType.integer(1, Integer.MAX_VALUE))
-                                .executes(ctx -> executeLog((Player) ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))
+                                .executes(ctx -> executeLog(-1, (Player) ctx.getSource(), IntegerArgumentType.getInteger(ctx, "page")))
                         )
                 )
                 // member
@@ -973,12 +973,15 @@ public class GuildCommand extends AbstractCommand {
         return 0;
     }
 
-    private static int executeLog(@NotNull Player player, @Range(from = 0, to = Integer.MAX_VALUE) int page) {
-        long selectedGuild = ensureSelected(player);
-        if (selectedGuild == -1) return 0;
+    static int executeLog(long guildId, @NotNull Player player, @Range(from = 0, to = Integer.MAX_VALUE) int page) {
+        if (guildId == -1) {
+            guildId = ensureSelected(player);
+            if (guildId == -1) return 0;
+        }
         try {
+            long finalGuildId = guildId;
             int maxPage = DatabaseManager.get().getPrepareStatement("SELECT COUNT(`id`) FROM `guild_logs` WHERE `guild_id` = ?", stmt -> {
-                stmt.setLong(1, selectedGuild);
+                stmt.setLong(1, finalGuildId);
                 ResultSet rs = stmt.executeQuery();
                 if (rs.next()) {
                     int count = rs.getInt(1);
@@ -995,7 +998,7 @@ public class GuildCommand extends AbstractCommand {
                 page = maxPage;
             }
             List<GuildLog> logs = DatabaseManager.get().getPrepareStatement("SELECT * FROM `guild_logs` WHERE `guild_id` = ? LIMIT " + ((page - 1) * 10) + ", 10", stmt -> {
-                stmt.setLong(1, selectedGuild);
+                stmt.setLong(1, finalGuildId);
                 ResultSet rs = stmt.executeQuery();
                 return ResultSetUtil.toList(rs, GuildLog::createFromResultSet);
             });

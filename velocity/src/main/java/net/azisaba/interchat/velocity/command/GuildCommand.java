@@ -1155,6 +1155,12 @@ public class GuildCommand extends AbstractCommand {
     private static int executeForceNick(@NotNull Player player, @NotNull GuildMember member, @Nullable String name) {
         long selectedGuild = ensureSelected(player);
         if (selectedGuild == -1) return 0;
+        GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        if (self.role() != GuildRole.OWNER) {
+            // member must be owner
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.delete.not_owner").color(NamedTextColor.RED));
+            return 0;
+        }
         if ("off".equals(name)) name = null;
         new GuildMember(member.guildId(), member.uuid(), member.role(), name).update();
         DatabaseManager.get().submitLog(selectedGuild, player, "Changed nickname of " + member.uuid() + " to " + name);

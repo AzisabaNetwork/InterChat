@@ -12,6 +12,7 @@ dependencies {
     implementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
     compileOnly("com.velocitypowered:velocity-api:3.1.1")
     annotationProcessor("com.velocitypowered:velocity-api:3.1.1")
+    compileOnly("net.luckperms:api:5.4")
 }
 
 tasks {

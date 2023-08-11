@@ -8,6 +8,7 @@ import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
+import net.azisaba.interchat.api.data.LuckPermsUserDataProvider;
 import net.azisaba.interchat.api.data.UserDataProvider;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildRole;
@@ -22,6 +23,8 @@ import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.luckperms.api.node.types.PrefixNode;
+import net.luckperms.api.node.types.SuffixNode;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -87,6 +90,14 @@ public class GuildAdminCommand extends AbstractCommand {
     private static int executeUserData(@NotNull CommandSource source) {
         if (!(source instanceof Player player)) {
             return 0;
+        }
+        if (LuckPermsUserDataProvider.isAvailable()) {
+            player.sendMessage(Component.text("Prefix data:"));
+            LuckPermsUserDataProvider.getChatMetaNodeDataList(player.getUniqueId(), PrefixNode.class)
+                    .forEach(obj -> player.sendMessage(Component.text("- " + obj)));
+            player.sendMessage(Component.text("Suffix data:"));
+            LuckPermsUserDataProvider.getChatMetaNodeDataList(player.getUniqueId(), SuffixNode.class)
+                    .forEach(obj -> player.sendMessage(Component.text("- " + obj)));
         }
         UserDataProvider userDataProvider = InterChatProvider.get().getUserDataProvider();
         player.sendMessage(Component.text("Prefixes:"));

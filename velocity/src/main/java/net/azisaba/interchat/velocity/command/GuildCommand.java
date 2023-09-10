@@ -32,6 +32,7 @@ import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.guild.VelocityGuildManager;
 import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
+import net.azisaba.interchat.velocity.util.DurationUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
@@ -43,6 +44,7 @@ import org.jetbrains.annotations.Range;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,7 +60,7 @@ public class GuildCommand extends AbstractCommand {
                     // commands
                     "create", "format", "chat", "delete", "select", "role", "invite", "kick", "ban", "ban-public", "unban", "pardon",
                     "leave", "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
-                    "linkdiscord", "unlinkdiscord", "nick", "force-nick", "open", "join",
+                    "linkdiscord", "unlinkdiscord", "nick", "force-nick", "open", "join", "hideall",
                     // reserved names
                     "permission", "permissions"
             );
@@ -81,6 +83,7 @@ public class GuildCommand extends AbstractCommand {
             "%prefix", "%{prefix:server}", "%{prefix:server:default}", "%suffix", "%{suffix:server}", "%{suffix:server:default}"
             ));
     private static final ConcurrentHashMap<UUID, Long> LAST_GUILD_CREATED = new ConcurrentHashMap<>();
+    private static final List<String> HIDE_ALL_DISABLE_WORDS = Arrays.asList("off", "disable", "disabled", "no");
     public static @NotNull SuggestionProvider<CommandSource> getChatSuggestionProvider(ChatSuggestionGuildProvider chatSuggestionGuildProvider) {
         return (context, builder) -> {
             // preview and suggest
@@ -344,16 +347,26 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.jp-off"))
                         .executes(ctx -> executeToggleTranslateKana((Player) ctx.getSource(), false))
                 )
+                // everyone
                 .then(literal("linkdiscord")
                         .requires(source -> source.hasPermission("interchat.guild.linkdiscord"))
                         .executes(ctx -> executeLinkDiscord((Player) ctx.getSource()))
                 )
+                // everyone
                 .then(literal("unlinkdiscord")
                         .requires(source -> source.hasPermission("interchat.guild.unlinkdiscord"))
                         .executes(ctx -> executeUnlinkDiscord((Player) ctx.getSource()))
                 )
+                // everyone
+                .then(literal("hideall")
+                        .requires(source -> source.hasPermission("interchat.guild.hideall"))
+                        .executes(ctx -> executeHideAllCommand((Player) ctx.getSource(), ""))
+                        .then(argument("duration", StringArgumentType.word())
+                                .executes(ctx -> executeHideAllCommand((Player) ctx.getSource(), StringArgumentType.getString(ctx, "duration")))
+                        )
+                )
 
-                // handle special cases
+                // handle chat
                 .then(argument("guild", GuildArgumentType.guild())
                         .executes(ctx -> executeSetFocusedGuild((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false).id()))
                         .then(argument("message", StringArgumentType.greedyString())
@@ -478,6 +491,24 @@ public class GuildCommand extends AbstractCommand {
     }
 
     static int executeChat(@NotNull Player player, @NotNull String message, long selectedGuild) {
+        try {
+            long hideAllUntil = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
+                ps.setString(1, player.getUniqueId().toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong("hide_all_until");
+                    } else {
+                        return 0L;
+                    }
+                }
+            });
+            if (hideAllUntil > System.currentTimeMillis()) {
+                player.sendMessage(VMessages.formatComponent(player, "generic.not_delivered_hideall").color(NamedTextColor.RED));
+                return 0;
+            }
+        } catch (SQLException ex) {
+            VelocityPlugin.getPlugin().getLogger().warn("Failed to check hide all state", ex);
+        }
         try {
             InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
         } catch (CompletionException e) {
@@ -1168,6 +1199,55 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.force_nick.off").color(NamedTextColor.GREEN));
         } else {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.force_nick.on", name).color(NamedTextColor.GREEN));
+        }
+        return 1;
+    }
+
+    private static int executeHideAllCommand(@NotNull Player player, @NotNull String arg) {
+        try {
+            Duration duration;
+            if (arg.isEmpty()) {
+                long current = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
+                    ps.setString(1, player.getUniqueId().toString());
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next()) {
+                            return rs.getLong("hide_all_until");
+                        } else {
+                            return 0L;
+                        }
+                    }
+                });
+                if (current < System.currentTimeMillis()) {
+                    duration = Duration.ofMinutes(30);
+                } else {
+                    duration = Duration.ZERO;
+                }
+            } else if (HIDE_ALL_DISABLE_WORDS.contains(arg)) {
+                duration = Duration.ZERO;
+            } else {
+                try {
+                    duration = DurationUtil.convertStringToDuration(arg);
+                } catch (IllegalArgumentException e) {
+                    player.sendMessage(VMessages.formatComponent(player, "command.guild.hideall.invalid_duration", arg).color(NamedTextColor.RED));
+                    return 0;
+                }
+            }
+            if (duration.isNegative() || duration.getSeconds() > 30 * 24 * 60 * 60) { // negative or more than 30 days
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.hideall.invalid_duration", arg).color(NamedTextColor.RED));
+                return 0;
+            }
+            DatabaseManager.get().query("UPDATE `players` SET `hide_all_until` = ? WHERE `id` = ?", ps -> {
+                ps.setLong(1, System.currentTimeMillis() + duration.toMillis());
+                ps.setString(2, player.getUniqueId().toString());
+                ps.executeUpdate();
+            });
+            if (duration.isZero()) {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.hideall.disabled").color(NamedTextColor.GREEN));
+            } else {
+                player.sendMessage(VMessages.formatComponent(player, "command.guild.hideall.enabled", DurationUtil.convertDurationToString(player, duration)).color(NamedTextColor.GREEN));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
         return 1;
     }

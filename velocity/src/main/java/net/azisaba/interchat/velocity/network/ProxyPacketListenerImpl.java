@@ -14,6 +14,7 @@ import net.azisaba.interchat.api.util.AsyncUtil;
 import net.azisaba.interchat.api.util.MoreObjects;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.command.GuildCommand;
+import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
@@ -25,6 +26,8 @@ import org.intellij.lang.annotations.Subst;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +64,26 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                     VelocityPlugin.getPlugin().getServerAlias());
             Component formattedComponent = VMessages.fromLegacyText(formattedText);
             Logger.getCurrentLogger().info("[Guild Chat - {}] {} : {}", guild.name(), user.name(), VMessages.toPlainText(formattedComponent));
-            members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> player.sendMessage(formattedComponent)));
+            members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
+                try {
+                    long hideAllUntil = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
+                        ps.setString(1, member.uuid().toString());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                return rs.getLong("hide_all_until");
+                            } else {
+                                return 0L;
+                            }
+                        }
+                    });
+                    if (hideAllUntil > System.currentTimeMillis()) {
+                        return;
+                    }
+                } catch (SQLException e) {
+                    plugin.getLogger().warn("Failed to get hide_all_until value from {}", member.uuid(), e);
+                }
+                player.sendMessage(formattedComponent);
+            }));
         });
     }
 

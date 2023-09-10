@@ -29,7 +29,7 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class ChatListener {
-    private static final int CHAT_COOLDOWN_TIME = 300; //ms
+    private static final int CHAT_COOLDOWN_TIME = 200; //ms
     private static final Map<UUID, Long> CHAT_COOLDOWN = new ConcurrentHashMap<>();
     // (player uuid, (expiration time, guild id))
     private static final Map<UUID, Map.Entry<Long, Long>> CACHE = new ConcurrentHashMap<>();
@@ -144,6 +144,25 @@ public final class ChatListener {
             return;
         }
         e.setResult(PlayerChatEvent.ChatResult.denied());
+
+        try {
+            long hideAllUntil = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
+                ps.setString(1, e.getPlayer().getUniqueId().toString());
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong("hide_all_until");
+                    } else {
+                        return 0L;
+                    }
+                }
+            });
+            if (hideAllUntil > System.currentTimeMillis()) {
+                e.getPlayer().sendMessage(VMessages.formatComponent(e.getPlayer(), "generic.not_delivered_hideall").color(NamedTextColor.RED));
+                return;
+            }
+        } catch (SQLException ex) {
+            VelocityPlugin.getPlugin().getLogger().warn("Failed to check hide all state", ex);
+        }
 
         String transliteratedMessage = null;
         if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {

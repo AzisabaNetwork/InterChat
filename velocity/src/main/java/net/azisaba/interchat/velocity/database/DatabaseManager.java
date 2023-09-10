@@ -76,6 +76,7 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `focused_guild` BIGINT NOT NULL DEFAULT -1," + // able to chat to guild without command
                     "  `accepting_invites` TINYINT(1) NOT NULL DEFAULT 1," +
                     "  `translate_kana` TINYINT(1) NOT NULL DEFAULT 1," +
+                    "  `hide_all_until` BIGINT NOT NULL DEFAULT 0," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
         });

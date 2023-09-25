@@ -6,11 +6,7 @@ import net.azisaba.interchat.api.util.ResultSetUtil;
 import org.jetbrains.annotations.NotNull;
 
 import java.sql.ResultSet;
-import java.util.Collection;
-import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 
@@ -61,6 +57,7 @@ public class SQLUserManager implements UserManager {
 
     @Override
     public @NotNull CompletableFuture<List<User>> fetchUsers(@NotNull Collection<? extends UUID> uuids) {
+        if (uuids.isEmpty()) return CompletableFuture.completedFuture(Collections.emptyList());
         CompletableFuture<List<User>> future = new CompletableFuture<>();
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {

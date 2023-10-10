@@ -44,6 +44,7 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `uuid` VARCHAR(36) NOT NULL," +
                     "  `role` VARCHAR(64) NOT NULL DEFAULT 'MEMBER'," +
                     "  `nickname` VARCHAR(32) DEFAULT NULL," +
+                    "  `hidden_by_member` TINYINT(1) NOT NULL DEFAULT 0," + // ALTER TABLE `guild_members` ADD `hidden_by_member` TINYINT(1) NOT NULL DEFAULT 0;
                     "  PRIMARY KEY (`guild_id`, `uuid`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
             statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_invites` (" +
@@ -79,6 +80,11 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `hide_all_until` BIGINT NOT NULL DEFAULT 0," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+//            statement.executeUpdate("CREATE TABLE IF NOT EXISTS `hidden_players` (" +
+//                    "  `id` VARCHAR(36) NOT NULL," +
+//                    "  `target` VARCHAR(36) NOT NULL," +
+//                    "  PRIMARY KEY (`id`, `target`)" +
+//                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
         });
     }
 

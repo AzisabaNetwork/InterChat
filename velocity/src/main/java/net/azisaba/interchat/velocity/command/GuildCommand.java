@@ -60,7 +60,7 @@ public class GuildCommand extends AbstractCommand {
                     // commands
                     "create", "format", "chat", "delete", "select", "role", "invite", "kick", "ban", "ban-public", "unban", "pardon",
                     "leave", "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
-                    "linkdiscord", "unlinkdiscord", "nick", "force-nick", "open", "join", "hideall",
+                    "linkdiscord", "unlinkdiscord", "nick", "force-nick", "open", "join", "hideall", "hide-guild", "hide-player",
                     // reserved names
                     "permission", "permissions"
             );
@@ -358,6 +358,11 @@ public class GuildCommand extends AbstractCommand {
                         .executes(ctx -> executeUnlinkDiscord((Player) ctx.getSource()))
                 )
                 // everyone
+                .then(literal("hide-guild")
+                        .requires(source -> source.hasPermission("interchat.guild.hide-guild"))
+                        .executes(ctx -> executeHideGuildCommand((Player) ctx.getSource()))
+                )
+                // everyone
                 .then(literal("hideall")
                         .requires(source -> source.hasPermission("interchat.guild.hideall"))
                         .executes(ctx -> executeHideAllCommand((Player) ctx.getSource(), ""))
@@ -510,7 +515,11 @@ public class GuildCommand extends AbstractCommand {
             VelocityPlugin.getPlugin().getLogger().warn("Failed to check hide all state", ex);
         }
         try {
-            InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+            GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+            if (self.hiddenByMember()) {
+                player.sendMessage(VMessages.formatComponent(player, "generic.not_delivered_hide").color(NamedTextColor.RED));
+                return 0;
+            }
         } catch (CompletionException e) {
             player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", selectedGuild).color(NamedTextColor.RED));
             return 0;
@@ -1173,7 +1182,7 @@ public class GuildCommand extends AbstractCommand {
         if (selectedGuild == -1) return 0;
         GuildMember member = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
         if ("off".equals(name)) name = null;
-        new GuildMember(member.guildId(), member.uuid(), member.role(), name).update();
+        new GuildMember(member.guildId(), member.uuid(), member.role(), name, member.hiddenByMember()).update().join();
         DatabaseManager.get().submitLog(selectedGuild, player, "Changed nickname to " + name);
         if (name == null) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.nick.off").color(NamedTextColor.GREEN));
@@ -1193,12 +1202,28 @@ public class GuildCommand extends AbstractCommand {
             return 0;
         }
         if ("off".equals(name)) name = null;
-        new GuildMember(member.guildId(), member.uuid(), member.role(), name).update();
+        new GuildMember(member.guildId(), member.uuid(), member.role(), name, member.hiddenByMember()).update().join();
         DatabaseManager.get().submitLog(selectedGuild, player, "Changed nickname of " + member.uuid() + " to " + name);
         if (name == null) {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.force_nick.off").color(NamedTextColor.GREEN));
         } else {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.force_nick.on", name).color(NamedTextColor.GREEN));
+        }
+        return 1;
+    }
+
+    private static int executeHideGuildCommand(@NotNull Player player) {
+        long selectedGuild = ensureSelected(player);
+        if (selectedGuild == -1) return 0;
+        Guild guild = InterChatProvider.get().getGuildManager().fetchGuildById(selectedGuild).join();
+        GuildMember self = InterChatProvider.get().getGuildManager().getMember(selectedGuild, player.getUniqueId()).join();
+        new GuildMember(self.guildId(), self.uuid(), self.role(), self.nickname(), !self.hiddenByMember()).update().join();
+        if (self.hiddenByMember()) {
+            // was true, set to false (now unhidden)
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.hide_guild.off", guild.name()).color(NamedTextColor.GREEN));
+        } else {
+            // was false, set to true (now hidden)
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.hide_guild.on", guild.name()).color(NamedTextColor.GREEN));
         }
         return 1;
     }

@@ -6,6 +6,7 @@ import com.velocitypowered.api.event.connection.PostLoginEvent;
 import com.velocitypowered.api.event.player.PlayerChatEvent;
 import com.velocitypowered.api.network.ProtocolVersion;
 import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
 import net.azisaba.interchat.api.text.KanaTranslator;
@@ -133,7 +134,12 @@ public final class ChatListener {
             return;
         }
         try {
-            InterChatProvider.get().getGuildManager().getMember(focusedGuildId, e.getPlayer().getUniqueId()).join();
+            GuildMember self = InterChatProvider.get().getGuildManager().getMember(focusedGuildId, e.getPlayer().getUniqueId()).join();
+            if (self.hiddenByMember()) {
+                e.getPlayer().sendMessage(VMessages.formatComponent(e.getPlayer(), "generic.not_delivered_hide").color(NamedTextColor.RED));
+                e.setResult(PlayerChatEvent.ChatResult.denied());
+                return;
+            }
         } catch (CompletionException ex) {
             removeCache(e.getPlayer().getUniqueId()); // update cache next time
             return; // not in guild

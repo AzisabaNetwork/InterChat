@@ -93,10 +93,9 @@ public class SQLGuildManager implements GuildManager {
         CompletableFuture<List<GuildMember>> future = new CompletableFuture<>();
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
-                queryExecutor.query("SELECT * FROM `guild_members` WHERE `guild_id` = ?", stmt ->{
+                queryExecutor.query("SELECT * FROM `guild_members` WHERE `guild_id` = ?", stmt -> {
                     stmt.setLong(1, guildId);
-                    ResultSet rs = stmt.executeQuery();
-                    List<GuildMember> members = ResultSetUtil.toList(rs, GuildMember::createByResultSet);
+                    List<GuildMember> members = ResultSetUtil.toList(stmt.executeQuery(), GuildMember::createByResultSet);
                     future.complete(members);
                 });
             } catch (Throwable t) {
@@ -185,11 +184,13 @@ public class SQLGuildManager implements GuildManager {
         CompletableFuture<Void> future = new CompletableFuture<>();
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
-                queryExecutor.query("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`, `nickname`) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `nickname` = VALUES(`nickname`)", stmt ->{
+                queryExecutor.query("INSERT INTO `guild_members` (`guild_id`, `uuid`, `role`, `nickname`, `hidden_by_member`) VALUES (?, ?, ?, ?, ?)" +
+                        " ON DUPLICATE KEY UPDATE `role` = VALUES(`role`), `nickname` = VALUES(`nickname`), `hidden_by_member` = VALUES(`hidden_by_member`)", stmt ->{
                     stmt.setLong(1, member.guildId());
                     stmt.setString(2, member.uuid().toString());
                     stmt.setString(3, member.role().name());
                     stmt.setString(4, member.nickname());
+                    stmt.setBoolean(5, member.hiddenByMember());
                     stmt.executeUpdate();
                     future.complete(null);
                 });
@@ -208,8 +209,7 @@ public class SQLGuildManager implements GuildManager {
             try {
                 queryExecutor.query("SELECT `guilds`.* FROM `guild_members` LEFT JOIN `guilds` ON `guilds`.`id` = `guild_members`.`guild_id` WHERE `guild_members`.`uuid` = ?", stmt ->{
                     stmt.setString(1, uuid.toString());
-                    ResultSet rs = stmt.executeQuery();
-                    List<Guild> guilds = ResultSetUtil.toList(rs, Guild::createByResultSet);
+                    List<Guild> guilds = ResultSetUtil.toList(stmt.executeQuery(), Guild::createByResultSet);
                     future.complete(guilds);
                 });
             } catch (Throwable t) {
@@ -237,8 +237,7 @@ public class SQLGuildManager implements GuildManager {
                 queryExecutor.query(query, stmt ->{
                     stmt.setString(1, uuid.toString());
                     stmt.setString(2, GuildRole.OWNER.name());
-                    ResultSet rs = stmt.executeQuery();
-                    List<Guild> guilds = ResultSetUtil.toList(rs, Guild::createByResultSet);
+                    List<Guild> guilds = ResultSetUtil.toList(stmt.executeQuery(), Guild::createByResultSet);
                     future.complete(guilds);
                 });
             } catch (Throwable t) {

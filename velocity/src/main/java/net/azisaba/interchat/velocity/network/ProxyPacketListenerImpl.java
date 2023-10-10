@@ -65,6 +65,9 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
             Component formattedComponent = VMessages.fromLegacyText(formattedText);
             Logger.getCurrentLogger().info("[Guild Chat - {}] {} : {}", guild.name(), user.name(), VMessages.toPlainText(formattedComponent));
             members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
+                if (member.hiddenByMember()) {
+                    return;
+                }
                 try {
                     long hideAllUntil = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
                         ps.setString(1, member.uuid().toString());

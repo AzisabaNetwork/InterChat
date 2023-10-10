@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -17,16 +18,18 @@ public final class GuildMember {
     private final GuildRole role;
     @Nullable
     private final String nickname;
+    private final boolean hiddenByMember;
 
     public GuildMember(long guildId, @NotNull UUID uuid, @NotNull GuildRole role) {
-        this(guildId, uuid, role, null);
+        this(guildId, uuid, role, null, false);
     }
 
-    public GuildMember(long guildId, @NotNull UUID uuid, @NotNull GuildRole role, @Nullable String nickname) {
+    public GuildMember(long guildId, @NotNull UUID uuid, @NotNull GuildRole role, @Nullable String nickname, boolean hiddenByMember) {
         this.guildId = guildId;
-        this.uuid = uuid;
-        this.role = role;
+        this.uuid = Objects.requireNonNull(uuid, "uuid");
+        this.role = Objects.requireNonNull(role, "role");
         this.nickname = nickname;
+        this.hiddenByMember = hiddenByMember;
     }
 
     @Contract("_ -> new")
@@ -36,7 +39,8 @@ public final class GuildMember {
             UUID uuid = UUID.fromString(rs.getString("uuid"));
             GuildRole role = GuildRole.valueOf(rs.getString("role"));
             String nickname = rs.getString("nickname");
-            return new GuildMember(guildId, uuid, role, nickname);
+            boolean hiddenByMember = rs.getBoolean("hidden_by_member");
+            return new GuildMember(guildId, uuid, role, nickname, hiddenByMember);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
@@ -48,18 +52,23 @@ public final class GuildMember {
     }
 
     @Contract(pure = true)
-    public UUID uuid() {
+    public @NotNull UUID uuid() {
         return uuid;
     }
 
     @Contract(pure = true)
-    public GuildRole role() {
+    public @NotNull GuildRole role() {
         return role;
     }
 
     @Contract(pure = true)
     public @Nullable String nickname() {
         return nickname;
+    }
+
+    @Contract(pure = true)
+    public boolean hiddenByMember() {
+        return hiddenByMember;
     }
 
     @Contract(pure = true)

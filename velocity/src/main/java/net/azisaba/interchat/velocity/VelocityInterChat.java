@@ -1,8 +1,6 @@
 package net.azisaba.interchat.velocity;
 
-import net.azisaba.interchat.api.data.DummyUserDataProvider;
-import net.azisaba.interchat.api.data.LuckPermsUserDataProvider;
-import net.azisaba.interchat.api.data.UserDataProvider;
+import net.azisaba.interchat.api.data.*;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.InterChat;
 import net.azisaba.interchat.api.Logger;
@@ -20,10 +18,18 @@ public final class VelocityInterChat implements InterChat {
     private final GuildManager guildManager = new VelocityGuildManager();
     private final UserManager userManager = new SQLUserManager(DatabaseManager.get());
     private final Executor asyncExecutor;
+    private final UserDataProvider userDataProvider;
 
     public VelocityInterChat(@NotNull VelocityPlugin plugin) {
         this.logger = Logger.createByProxy(plugin.getLogger());
         this.asyncExecutor = r -> plugin.getServer().getScheduler().buildTask(plugin, r).schedule();
+        if (!plugin.isNoWorkers() && LuckPermsUserDataProvider.isAvailable()) {
+            userDataProvider = new CompoundUserDataProvider(new WorkersUserDataProvider(), new LuckPermsUserDataProvider());
+        } else if (LuckPermsUserDataProvider.isAvailable()) {
+            userDataProvider = new LuckPermsUserDataProvider();
+        } else {
+            userDataProvider = DummyUserDataProvider.INSTANCE;
+        }
     }
 
     @Contract(pure = true)
@@ -52,9 +58,6 @@ public final class VelocityInterChat implements InterChat {
 
     @Override
     public @NotNull UserDataProvider getUserDataProvider() {
-        if (LuckPermsUserDataProvider.isAvailable()) {
-            return new LuckPermsUserDataProvider();
-        }
-        return DummyUserDataProvider.INSTANCE;
+        return userDataProvider;
     }
 }

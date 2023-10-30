@@ -18,8 +18,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class MessageFormatter {
-    private static final Pattern PREFIX_PATTERN = Pattern.compile("%\\{prefix(:[a-zA-Z0-9_\\-]*(:.+)?)?}");
-    private static final Pattern SUFFIX_PATTERN = Pattern.compile("%\\{suffix(:[a-zA-Z0-9_\\-]*(:.+)?)?}");
+    private static final Pattern PREFIX_PATTERN = Pattern.compile("%\\{prefix(:[a-zA-Z0-9_.\\-]*(:.+)?)?}");
+    private static final Pattern SUFFIX_PATTERN = Pattern.compile("%\\{suffix(:[a-zA-Z0-9_.\\-]*(:.+)?)?}");
 
     /**
      * @deprecated Use {@link #format(String, Guild, String, User, String, String, String, Map)} instead
@@ -87,6 +87,7 @@ public final class MessageFormatter {
         Map<String, String> suffix = userDataProvider.getSuffix(sender.id());
         AtomicReference<String> atomicFormat = new AtomicReference<>(format);
         BiFunction<Map<String, String>, String, String> getValueOrGlobal = (map, key) -> {
+            userDataProvider.requestUpdate(sender.id(), key);
             if (map.containsKey(key)) {
                 return map.get(key);
             } else {

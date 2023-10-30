@@ -25,6 +25,7 @@ import net.azisaba.interchat.velocity.listener.JoinListener;
 import net.azisaba.interchat.velocity.network.ProxyPacketListenerImpl;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
@@ -49,6 +50,7 @@ public class VelocityPlugin {
     private final DatabaseManager databaseManager;
     private final DatabaseConfig databaseConfig;
     private final Map<String, String> serverAlias = new HashMap<>();
+    private final boolean noWorkers;
 
     @Inject
     public VelocityPlugin(@NotNull ProxyServer server, @NotNull Logger logger, @DataDirectory @NotNull Path dataDirectory) throws IOException, SQLException {
@@ -67,6 +69,7 @@ public class VelocityPlugin {
         if (config.getMap("server-alias") != null) {
             Objects.requireNonNull(config.getMap("server-alias")).forEach((k, v) -> serverAlias.put(String.valueOf(k), String.valueOf(v)));
         }
+        this.noWorkers = config.getBoolean("no-workers", false);
 
         logger.info("Connecting to database...");
         this.databaseConfig = new DatabaseConfig(databaseConfig);
@@ -160,5 +163,9 @@ public class VelocityPlugin {
 
     public @NotNull Map<String, String> getServerAlias() {
         return serverAlias;
+    }
+
+    public boolean isNoWorkers() {
+        return noWorkers;
     }
 }

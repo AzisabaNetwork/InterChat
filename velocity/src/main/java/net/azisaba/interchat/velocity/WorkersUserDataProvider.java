@@ -48,7 +48,10 @@ class WorkersUserDataProvider implements UserDataProvider {
         CompletableFuture<Void> future = new CompletableFuture<>();
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
-                this.prefix.put(uuid, Collections.singletonMap(server, getPrefixData(uuid, server)));
+                String prefixData = getPrefixData(uuid, server);
+                if (!prefixData.isBlank()) {
+                    this.prefix.put(uuid, Collections.singletonMap(server, prefixData));
+                }
             } catch (Exception e) {
                 Logger.getCurrentLogger().warn("Error fetching prefix data", e);
             } finally {

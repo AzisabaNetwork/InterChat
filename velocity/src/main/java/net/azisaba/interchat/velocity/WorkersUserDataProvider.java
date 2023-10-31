@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * to populate the data.
  */
 class WorkersUserDataProvider implements UserDataProvider {
-    private final Map<UUID, Long> requestDataCooldown = new ConcurrentHashMap<>();
+    private final Map<String, Long> requestDataCooldown = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, String>> prefix = new ConcurrentHashMap<>();
 
     private @NotNull String getPrefixData(@NotNull UUID uuid, @NotNull String server) {
@@ -41,10 +41,10 @@ class WorkersUserDataProvider implements UserDataProvider {
      */
     @Override
     public @NotNull CompletableFuture<Void> requestUpdate(@NotNull UUID uuid, @NotNull String server) {
-        if (requestDataCooldown.getOrDefault(uuid, 0L) > System.currentTimeMillis()) {
+        if (requestDataCooldown.getOrDefault(uuid + ":" + server, 0L) > System.currentTimeMillis()) {
             return CompletableFuture.completedFuture(null);
         }
-        requestDataCooldown.put(uuid, System.currentTimeMillis() + 1000 * 60 * 5);
+        requestDataCooldown.put(uuid + ":" + server, System.currentTimeMillis() + 1000 * 60 * 5);
         CompletableFuture<Void> future = new CompletableFuture<>();
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {

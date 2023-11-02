@@ -81,6 +81,12 @@ public class GuildAdminCommand extends AbstractCommand {
                                                 .executes(ctx -> executeGuildRename(ctx.getSource(), GuildArgumentType.get(ctx, "guild", false), StringArgumentType.getString(ctx, "name")))
                                         )
                                 )
+                                .then(literal("capacity")
+                                        .requires(source -> source.hasPermission("interchat.guildadmin.guild.capacity"))
+                                        .then(argument("capacity", IntegerArgumentType.integer(0))
+                                                .executes(ctx -> executeGuildCapacity(ctx.getSource(), GuildArgumentType.get(ctx, "guild", false), IntegerArgumentType.getInteger(ctx, "capacity")))
+                                        )
+                                )
                                 .then(literal("info")
                                         .executes(ctx -> GuildCommand.executeInfo((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", true)))
                                 )
@@ -232,6 +238,22 @@ public class GuildAdminCommand extends AbstractCommand {
             source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.rename.success", newName).color(NamedTextColor.GREEN));
         } catch (SQLException e) {
             Logger.getCurrentLogger().error("Failed to rename guild {} to {}", guild.id(), newName, e);
+            source.sendMessage(VMessages.formatComponent(source, "command.error.generic", e.getMessage()).color(NamedTextColor.RED));
+        }
+        return 1;
+    }
+
+    private static int executeGuildCapacity(@NotNull CommandSource source, @NotNull Guild guild, int capacity) {
+        try {
+            DatabaseManager.get().query("UPDATE `guilds` SET `capacity` = ? WHERE `id` = ?", stmt -> {
+                stmt.setInt(1, capacity);
+                stmt.setLong(2, guild.id());
+                stmt.executeUpdate();
+            });
+            DatabaseManager.get().submitLog(guild.id(), source, "Set guild capacity to " + capacity);
+            source.sendMessage(VMessages.formatComponent(source, "command.guildadmin.guild.capacity.success", capacity).color(NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to set capacity of guild {} to {}", guild.id(), capacity, e);
             source.sendMessage(VMessages.formatComponent(source, "command.error.generic", e.getMessage()).color(NamedTextColor.RED));
         }
         return 1;

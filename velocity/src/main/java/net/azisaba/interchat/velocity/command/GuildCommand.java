@@ -53,6 +53,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("SameReturnValue")
 public class GuildCommand extends AbstractCommand {
     private static final int LINK_EXPIRE_MINUTES = 10;
     private static final List<String> BLOCKED_GUILD_NAMES =
@@ -66,7 +67,7 @@ public class GuildCommand extends AbstractCommand {
             );
     private static final String DEFAULT_FORMAT = "&b[&a%gname&7@&6%server&b] &r%username&a: &r%msg &7%prereplace-b";
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
-    public static final String COMMAND_NAME = "guild_test";
+    public static final String COMMAND_NAME = "guild";
     private static final Map<UUID, Long> LAST_GUILD_INVITE = new ConcurrentHashMap<>();
     private static final Function<UUID, User> ACTUAL_USER = Functions.memoize(1000 * 10, uuid ->
             InterChatProvider.get().getUserManager().fetchUser(uuid).join()

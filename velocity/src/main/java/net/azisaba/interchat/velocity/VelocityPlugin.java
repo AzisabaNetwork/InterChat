@@ -14,10 +14,7 @@ import net.azisaba.interchat.api.network.ProxyPacketListener;
 import net.azisaba.interchat.api.network.Side;
 import net.azisaba.interchat.api.text.Messages;
 import net.azisaba.interchat.api.util.MapEx;
-import net.azisaba.interchat.velocity.command.GSShortCommand;
-import net.azisaba.interchat.velocity.command.GShortCommand;
-import net.azisaba.interchat.velocity.command.GuildAdminCommand;
-import net.azisaba.interchat.velocity.command.GuildCommand;
+import net.azisaba.interchat.velocity.command.*;
 import net.azisaba.interchat.velocity.database.DatabaseConfig;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.listener.ChatListener;
@@ -25,7 +22,6 @@ import net.azisaba.interchat.velocity.listener.JoinListener;
 import net.azisaba.interchat.velocity.network.ProxyPacketListenerImpl;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.yaml.snakeyaml.Yaml;
 
@@ -105,6 +101,7 @@ public class VelocityPlugin {
         server.getCommandManager().register(new GuildAdminCommand().createCommand());
         server.getCommandManager().register(new GShortCommand().createCommand());
         server.getCommandManager().register(new GSShortCommand().createCommand());
+        server.getCommandManager().register(new GuildTestCommand().createCommand());
     }
 
     @Subscribe

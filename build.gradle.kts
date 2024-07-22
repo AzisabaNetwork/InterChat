@@ -1,3 +1,5 @@
+import java.util.*
+
 plugins {
     java
     `java-library`
@@ -14,7 +16,7 @@ allprojects {
     }
 
     group = "net.azisaba.interchat"
-    version = "2.7.0-SNAPSHOT"
+    version = "2.8.0-SNAPSHOT"
 
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(8))
@@ -24,6 +26,7 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven { url = uri("https://repo.azisaba.net/repository/maven-public/") }
     }
 
     dependencies {

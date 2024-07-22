@@ -2,11 +2,15 @@ package net.azisaba.interchat.velocity.network;
 
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
+import net.azisaba.interchat.api.WorldPos;
+import net.azisaba.interchat.api.data.PlayerPosData;
+import net.azisaba.interchat.api.data.SenderInfo;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.guild.GuildInviteResult;
 import net.azisaba.interchat.api.guild.GuildManager;
 import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.network.ProxyPacketListener;
+import net.azisaba.interchat.api.network.RedisKeys;
 import net.azisaba.interchat.api.network.protocol.*;
 import net.azisaba.interchat.api.text.MessageFormatter;
 import net.azisaba.interchat.api.user.User;
@@ -55,12 +59,16 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
             }
             List<GuildMember> members = guildManager.getMembers(guild).join();
             Optional<String> nickname = members.stream().filter(m -> m.uuid().equals(user.id())).findAny().map(GuildMember::nickname);
+            WorldPos pos = null;
+            try {
+                pos = plugin.getJedisBox().get(RedisKeys.azisabaReportPlayerPos(user.id()), PlayerPosData.NETWORK_CODEC).toWorldPos();
+            } catch (Exception ignored) {
+            }
+            var info = new SenderInfo(user, packet.server(), nickname.orElse(null), pos);
             String formattedText = MessageFormatter.format(
                     guild.format(),
                     guild,
-                    packet.server(),
-                    user,
-                    nickname.orElse(null),
+                    info,
                     packet.message(),
                     packet.transliteratedMessage(),
                     VelocityPlugin.getPlugin().getServerAlias());

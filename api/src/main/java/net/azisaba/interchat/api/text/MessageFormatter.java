@@ -1,6 +1,8 @@
 package net.azisaba.interchat.api.text;
 
 import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.WorldPos;
+import net.azisaba.interchat.api.data.SenderInfo;
 import net.azisaba.interchat.api.data.UserDataProvider;
 import net.azisaba.interchat.api.guild.Guild;
 import net.azisaba.interchat.api.user.User;
@@ -37,7 +39,7 @@ public final class MessageFormatter {
     }
 
     /**
-     * @deprecated Use {@link #format(String, Guild, String, User, String, String, String, Map)} instead
+     * @deprecated Use {@link #format(String, Guild, SenderInfo, String, String, Map)} instead
      */
     @Deprecated
     public static @NotNull String format(
@@ -63,13 +65,37 @@ public final class MessageFormatter {
      * @param transliteratedMessage the transliterated message ({@link Transliterator})
      * @param serverAlias map of current server -&gt; server name used for %prefix and %suffix
      * @return the formatted message
+     * @deprecated Use {@link #format(String, Guild, SenderInfo, String, String, Map)} instead
      */
+    @Deprecated
     public static @NotNull String format(
             @NotNull String format,
             @NotNull Guild guild,
             @NotNull String server,
             @NotNull User sender,
             @Nullable String nickname,
+            @NotNull String message,
+            @Nullable String transliteratedMessage,
+            @NotNull Map<@NotNull String, @NotNull String> serverAlias
+    ) {
+        return format(format, guild, new SenderInfo(sender, server, nickname, null), message, transliteratedMessage, serverAlias);
+    }
+
+
+    /**
+     * Formats the message using arguments.
+     * @param format the "format"
+     * @param guild the guild
+     * @param senderInfo the sender data
+     * @param message the original message
+     * @param transliteratedMessage the transliterated message ({@link Transliterator})
+     * @param serverAlias map of current server -&gt; server name used for %prefix and %suffix
+     * @return the formatted message
+     */
+    public static @NotNull String format(
+            @NotNull String format,
+            @NotNull Guild guild,
+            @NotNull SenderInfo senderInfo,
             @NotNull String message,
             @Nullable String transliteratedMessage,
             @NotNull Map<@NotNull String, @NotNull String> serverAlias
@@ -83,11 +109,11 @@ public final class MessageFormatter {
             preReplaceB = "(" + message + ")";
         }
         UserDataProvider userDataProvider = InterChatProvider.get().getUserDataProvider();
-        Map<String, String> prefix = userDataProvider.getPrefix(sender.id());
-        Map<String, String> suffix = userDataProvider.getSuffix(sender.id());
+        Map<String, String> prefix = userDataProvider.getPrefix(senderInfo.getUser().id());
+        Map<String, String> suffix = userDataProvider.getSuffix(senderInfo.getUser().id());
         AtomicReference<String> atomicFormat = new AtomicReference<>(format);
         BiFunction<Map<String, String>, String, String> getValueOrGlobal = (map, key) -> {
-            userDataProvider.requestUpdate(sender.id(), key);
+            userDataProvider.requestUpdate(senderInfo.getUser().id(), key);
             if (map.containsKey(key)) {
                 return map.get(key);
             } else {
@@ -99,7 +125,7 @@ public final class MessageFormatter {
                 String mServer = matcher.group(1);
                 if (mServer != null) mServer = mServer.substring(1);
                 if (mServer == null || mServer.isEmpty()) {
-                    mServer = serverAlias.getOrDefault(server, server);
+                    mServer = serverAlias.getOrDefault(senderInfo.getServer(), senderInfo.getServer());
                 }
                 String mDefault = matcher.group(2);
                 if (mDefault != null) {
@@ -114,15 +140,19 @@ public final class MessageFormatter {
         consumer.accept(SUFFIX_PATTERN.matcher(format), suffix);
         return atomicFormat.get()
                 .replace("%gname", guild.name())
-                .replace("%server", server)
-                .replace("%playername", sender.name())
-                .replace("%username-n", Optional.ofNullable(nickname).orElse(sender.name()))
-                .replace("%username", Optional.ofNullable(nickname).map(s -> "~" + s).orElse(sender.name()))
+                .replace("%server", senderInfo.getServer())
+                .replace("%playername", senderInfo.getUser().name())
+                .replace("%username-n", Optional.ofNullable(senderInfo.getNickname()).orElse(senderInfo.getUser().name()))
+                .replace("%username", Optional.ofNullable(senderInfo.getNickname()).map(s -> "~" + s).orElse(senderInfo.getUser().name()))
                 .replace("%msg", msg)
                 .replace("%prereplace-b", preReplaceB)
                 .replace("%prereplace", preReplace)
-                .replace("%prefix", getOrDefault(getValueOrGlobal.apply(prefix, serverAlias.getOrDefault(server, server)), ""))
-                .replace("%suffix", getOrDefault(getValueOrGlobal.apply(suffix, serverAlias.getOrDefault(server, server)), ""))
+                .replace("%prefix", getOrDefault(getValueOrGlobal.apply(prefix, serverAlias.getOrDefault(senderInfo.getServer(), senderInfo.getServer())), ""))
+                .replace("%suffix", getOrDefault(getValueOrGlobal.apply(suffix, serverAlias.getOrDefault(senderInfo.getServer(), senderInfo.getServer())), ""))
+                .replace("%world", Optional.ofNullable(senderInfo.getPos()).map(WorldPos::getWorld).orElse("null"))
+                .replace("%x", Optional.ofNullable(senderInfo.getPos()).map(WorldPos::getX).orElse(0).toString())
+                .replace("%y", Optional.ofNullable(senderInfo.getPos()).map(WorldPos::getY).orElse(0).toString())
+                .replace("%z", Optional.ofNullable(senderInfo.getPos()).map(WorldPos::getZ).orElse(0).toString())
                 ;
     }
 

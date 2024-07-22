@@ -97,10 +97,10 @@ public class VelocityPlugin {
     public void onProxyInitialization(ProxyInitializeEvent e) {
         server.getEventManager().register(this, new ChatListener());
         server.getEventManager().register(this, new JoinListener());
-        server.getCommandManager().register(new GuildCommand().createCommand());
+        server.getCommandManager().register(new GuildCommand(this).createCommand());
         server.getCommandManager().register(new GuildAdminCommand().createCommand());
-        server.getCommandManager().register(new GShortCommand().createCommand());
-        server.getCommandManager().register(new GSShortCommand().createCommand());
+        server.getCommandManager().register(new GShortCommand(this).createCommand());
+        server.getCommandManager().register(new GSShortCommand(this).createCommand());
         server.getCommandManager().register(new GuildTestCommand().createCommand());
     }
 

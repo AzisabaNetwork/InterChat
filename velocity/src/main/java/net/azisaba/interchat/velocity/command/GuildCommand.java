@@ -14,8 +14,13 @@ import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
+import net.azisaba.interchat.api.WorldPos;
+import net.azisaba.interchat.api.data.PlayerPosData;
+import net.azisaba.interchat.api.data.SenderInfo;
 import net.azisaba.interchat.api.guild.*;
+import net.azisaba.interchat.api.network.JedisBox;
 import net.azisaba.interchat.api.network.Protocol;
+import net.azisaba.interchat.api.network.RedisKeys;
 import net.azisaba.interchat.api.network.protocol.*;
 import net.azisaba.interchat.api.text.KanaTranslator;
 import net.azisaba.interchat.api.text.MessageFormatter;
@@ -81,11 +86,12 @@ public class GuildCommand extends AbstractCommand {
     private static final Set<String> PLAYER_NAME_VARIABLES = new HashSet<>(Arrays.asList("%playername", "%username", "%username-n"));
     private static final Set<String> FORMAT_VARIABLES = new HashSet<>(Arrays.asList(
             "%gname", "%server", "%playername", "%username", "%username-n", "%msg", "%prereplace-b", "%prereplace",
-            "%prefix", "%{prefix:server}", "%{prefix:server:default}", "%suffix", "%{suffix:server}", "%{suffix:server:default}"
+            "%prefix", "%{prefix:server}", "%{prefix:server:default}", "%suffix", "%{suffix:server}", "%{suffix:server:default}",
+            "%world", "%x", "%y", "%z"
             ));
     private static final ConcurrentHashMap<UUID, Long> LAST_GUILD_CREATED = new ConcurrentHashMap<>();
     private static final List<String> HIDE_ALL_DISABLE_WORDS = Arrays.asList("off", "disable", "disabled", "no");
-    public static @NotNull SuggestionProvider<CommandSource> getChatSuggestionProvider(ChatSuggestionGuildProvider chatSuggestionGuildProvider) {
+    public static @NotNull SuggestionProvider<CommandSource> getChatSuggestionProvider(JedisBox jedisBox, ChatSuggestionGuildProvider chatSuggestionGuildProvider) {
         return (context, builder) -> {
             // preview and suggest
             User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
@@ -114,7 +120,16 @@ public class GuildCommand extends AbstractCommand {
                     } catch (IndexOutOfBoundsException ignored) {}
                 }
             }
-            String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), message, transliteratedEntire, VelocityPlugin.getPlugin().getServerAlias());
+            var pos = jedisBox.get(RedisKeys.azisabaReportPlayerPos(user.id()), PlayerPosData.NETWORK_CODEC, 250).toWorldPos();
+            var senderInfo = new SenderInfo(user, server, member.nickname(), pos);
+            String formatted = "§r" + MessageFormatter.format(
+                    format,
+                    guild,
+                    senderInfo,
+                    message,
+                    transliteratedEntire,
+                    VelocityPlugin.getPlugin().getServerAlias()
+            );
             builder.suggest(formatted.replace('&', '§'));
             if (!suggestions.isEmpty()) {
                 suggestions = new ArrayList<>(suggestions);
@@ -125,6 +140,12 @@ public class GuildCommand extends AbstractCommand {
             }
             return builder.buildFuture();
         };
+    }
+
+    private final VelocityPlugin plugin;
+
+    public GuildCommand(@NotNull VelocityPlugin plugin) {
+        this.plugin = plugin;
     }
 
     @Override
@@ -156,7 +177,15 @@ public class GuildCommand extends AbstractCommand {
                                     String format = context.getLastChild()
                                             .getInput()
                                             .replaceFirst(COMMAND_NAME + " format ", "");
-                                    String formatted = "§r" + MessageFormatter.format(format, guild, server, user, member.nickname(), "tesuto", "テスト", VelocityPlugin.getPlugin().getServerAlias());
+                                    var senderInfo = new SenderInfo(user, server, member.nickname(), new WorldPos("world", 1, 2, 3));
+                                    String formatted = "§r" + MessageFormatter.format(
+                                            format,
+                                            guild,
+                                            senderInfo,
+                                            "tesuto",
+                                            "テスト",
+                                            VelocityPlugin.getPlugin().getServerAlias()
+                                    );
                                     return builder.suggest(formatted.replace('&', '§')).buildFuture();
                                 })
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
@@ -167,7 +196,7 @@ public class GuildCommand extends AbstractCommand {
                         .requires(source -> source.hasPermission("interchat.guild.chat"))
                         .executes(ctx -> executeSetFocusedGuild((Player) ctx.getSource()))
                         .then(argument("message", StringArgumentType.greedyString())
-                                .suggests(getChatSuggestionProvider((ctx, uuid) -> ACTUAL_GUILD.apply(uuid)))
+                                .suggests(getChatSuggestionProvider(plugin.getJedisBox(), (ctx, uuid) -> ACTUAL_GUILD.apply(uuid)))
                                 .executes(ctx -> executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message")))
                         )
                 )

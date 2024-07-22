@@ -4,10 +4,17 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.velocitypowered.api.command.CommandSource;
 import com.velocitypowered.api.proxy.Player;
+import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.command.argument.GuildArgumentType;
 import org.jetbrains.annotations.NotNull;
 
 public class GSShortCommand extends AbstractCommand {
+    private final VelocityPlugin plugin;
+
+    public GSShortCommand(@NotNull VelocityPlugin plugin) {
+        this.plugin = plugin;
+    }
+
     @Override
     protected @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
         return literal("gs")
@@ -17,7 +24,7 @@ public class GSShortCommand extends AbstractCommand {
                         .executes(ctx -> GuildCommand.executeSelect((Player) ctx.getSource(), GuildArgumentType.get(ctx, "guild", false)))
                         .then(argument("message", StringArgumentType.greedyString())
                                 .requires(source -> source.hasPermission("interchat.guild.chat"))
-                                .suggests(GuildCommand.getChatSuggestionProvider((ctx, uuid) -> GuildArgumentType.get(ctx, "guild", false)))
+                                .suggests(GuildCommand.getChatSuggestionProvider(plugin.getJedisBox(), (ctx, uuid) -> GuildArgumentType.get(ctx, "guild", false)))
                                 .executes(ctx -> GuildCommand.executeChat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "message"), GuildArgumentType.get(ctx, "guild", false).id()))
                         )
                 );

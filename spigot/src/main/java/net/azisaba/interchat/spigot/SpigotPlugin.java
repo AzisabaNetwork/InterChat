@@ -83,18 +83,19 @@ public class SpigotPlugin extends JavaPlugin {
             }
         };
         try {
+            // why spigot would do this?
             Bukkit.getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
             Bukkit.getMessenger().registerIncomingPluginChannel(this, "BungeeCord", listener);
-            Bukkit.getMessenger().registerOutgoingPluginChannel(this, "InterChat");
-            getLogger().info("Registered legacy plugin messaging channel");
-        } catch (Exception ignored) {
-        }
-        try {
-            Bukkit.getMessenger().registerOutgoingPluginChannel(this, "bungeecord:main");
-            Bukkit.getMessenger().registerIncomingPluginChannel(this, "bungeecord:main", listener);
             Bukkit.getMessenger().registerOutgoingPluginChannel(this, "interchat:main");
             getLogger().info("Registered modern plugin messaging channel");
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            try {
+                Bukkit.getMessenger().registerOutgoingPluginChannel(this, "bungeecord:main");
+                Bukkit.getMessenger().registerIncomingPluginChannel(this, "bungeecord:main", listener);
+                Bukkit.getMessenger().registerOutgoingPluginChannel(this, "InterChat");
+                getLogger().info("Registered legacy plugin messaging channel");
+            } catch (Exception ignored) {
+            }
         }
 
         Bukkit.getPluginManager().registerEvents(new PlayerListener(this), this);
@@ -178,14 +179,14 @@ public class SpigotPlugin extends JavaPlugin {
         out.writeUTF("Hello");
         byte[] array = out.toByteArray();
         try {
-            player.sendPluginMessage(this, "InterChat", array);
-            getLogger().info("Sent InterChat signal for " + player.getName());
-        } catch (Exception ignored) {
-        }
-        try {
             player.sendPluginMessage(this, "interchat:main", array);
             getLogger().info("Sent interchat:main signal for " + player.getName());
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            try {
+                player.sendPluginMessage(this, "InterChat", array);
+                getLogger().info("Sent InterChat signal for " + player.getName());
+            } catch (Exception ignored) {
+            }
         }
     }
 

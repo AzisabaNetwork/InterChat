@@ -1,0 +1,6 @@
+name: InterChat
+version: @version@
+main: net.azisaba.interchat.spigot.SpigotPlugin
+api-version: 1.13
+depend:
+  - ViaVersion # required to detect protocol version

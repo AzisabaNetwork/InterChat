@@ -1,21 +1,22 @@
-package net.azisaba.interchat.velocity.listener;
+package net.azisaba.interchat.spigot.listener;
 
-import com.velocitypowered.api.event.PostOrder;
-import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.connection.PostLoginEvent;
-import com.velocitypowered.api.event.player.PlayerChatEvent;
-import com.velocitypowered.api.network.ProtocolVersion;
 import net.azisaba.interchat.api.InterChatProvider;
+import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.guild.GuildMember;
 import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.GuildMessagePacket;
 import net.azisaba.interchat.api.text.KanaTranslator;
-import net.azisaba.interchat.velocity.VelocityPlugin;
-import net.azisaba.interchat.velocity.command.GuildCommand;
-import net.azisaba.interchat.velocity.database.DatabaseManager;
-import net.azisaba.interchat.velocity.text.VMessages;
-import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.format.NamedTextColor;
+import net.azisaba.interchat.spigot.SpigotPlugin;
+import net.azisaba.interchat.spigot.database.DatabaseManager;
+import net.azisaba.interchat.spigot.text.SMessages;
+import net.azisaba.interchat.spigot.util.ViaUtil;
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
+import org.bukkit.event.Listener;
+import org.bukkit.event.player.AsyncPlayerChatEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
 import org.jetbrains.annotations.Blocking;
 import org.jetbrains.annotations.NotNull;
 
@@ -23,21 +24,34 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.AbstractMap;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
-@SuppressWarnings({"SqlNoDataSourceInspection", "SqlResolve"})
-public final class ChatListener {
-    private static final int CHAT_COOLDOWN_TIME = 200; //ms
+@SuppressWarnings({"SqlResolve", "SqlNoDataSourceInspection"})
+public class PlayerListener implements Listener {
+    private final SpigotPlugin plugin;
+
+    public PlayerListener(@NotNull SpigotPlugin plugin) {
+        this.plugin = plugin;
+    }
+
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent e) {
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            plugin.fetchServer(e.getPlayer());
+            plugin.sendSignal(e.getPlayer());
+            removeCache(e.getPlayer().getUniqueId());
+        }, 20);
+    }
+
+    private static final int CHAT_COOLDOWN_TIME = 25; //ms
     private static final Map<UUID, Long> CHAT_COOLDOWN = new ConcurrentHashMap<>();
     // (player uuid, (expiration time, guild id))
     private static final Map<UUID, Map.Entry<Long, Long>> CACHE = new ConcurrentHashMap<>();
-    public static final Set<String> FORWARD_TO_BACKEND = new HashSet<>();
 
     // true if caller should cancel the chat
     public static boolean checkChatCooldown(@NotNull UUID uuid) {
@@ -90,8 +104,8 @@ public final class ChatListener {
             });
             if (focusedGuild != -1) {
                 try {
-                    InterChatProvider.get().getGuildManager().getMember(focusedGuild, uuid).join();
-                } catch (CompletionException ex) {
+                    InterChatProvider.get().getGuildManager().getMember(focusedGuild, uuid).get(1, TimeUnit.SECONDS);
+                } catch (Exception ex) {
                     // focused but not in guild
                     DatabaseManager.get().query("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {
                         stmt.setString(1, uuid.toString());
@@ -100,52 +114,38 @@ public final class ChatListener {
                     focusedGuild = -1L;
                 }
             }
-            CACHE.put(uuid, new AbstractMap.SimpleImmutableEntry<>(System.currentTimeMillis() + 1000L * 60L * 60L, focusedGuild));
+            CACHE.put(uuid, new AbstractMap.SimpleImmutableEntry<>(System.currentTimeMillis() + 1000L * 2, focusedGuild));
             return focusedGuild;
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
     }
 
-    @Subscribe
-    public void onPostLogin(PostLoginEvent e) {
-        removeCache(e.getPlayer().getUniqueId());
-    }
-
-    @Subscribe(order = PostOrder.LATE)
-    public void onPlayerChat(PlayerChatEvent e) {
-        if (!e.getResult().isAllowed()) {
-            // not allowed to chat due to other plugins
-            return;
+    @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
+    public void onAsyncPlayerChat(AsyncPlayerChatEvent e) {
+        try {
+            if (ViaUtil.getPlayerVersion(ViaUtil.getViaAPI(), e.getPlayer().getUniqueId()) < 760) {
+                // Ignore if player is not on 1.19.1+
+                return;
+            }
+        } catch (ReflectiveOperationException e2) {
+            throw new RuntimeException(e2);
         }
         String message = e.getMessage();
         if (message.startsWith("/")) return; // don't process commands
         long focusedGuildId = getFocusedGuildId(e.getPlayer().getUniqueId());
         if (focusedGuildId == -1) return; // no focused guild
-        if (e.getPlayer().getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal()) {
-            if (FORWARD_TO_BACKEND.contains(e.getPlayer().getCurrentServer().orElseThrow(IllegalStateException::new).getServerInfo().getName())) {
-                // forward to backend
-                return;
-            }
-            // See comments in body of GuildCommand#executeSetFocusedGuild
-            e.setResult(PlayerChatEvent.ChatResult.denied());
-            e.getPlayer().disconnect(VMessages.formatComponent(e.getPlayer(), "generic.1_19_1_not_supported")
-                    .color(NamedTextColor.RED)
-                    .append(Component.newline())
-                    .append(VMessages.formatComponent(e.getPlayer(), "guild.focus.kick_message", GuildCommand.COMMAND_NAME).color(NamedTextColor.RED)));
-            return;
-        }
         // check cooldown before executing query
         if (checkChatCooldown(e.getPlayer().getUniqueId())) {
             // silently discard message; cooldown is very short anyway
-            e.setResult(PlayerChatEvent.ChatResult.denied());
+            e.setCancelled(true);
             return;
         }
         try {
             GuildMember self = InterChatProvider.get().getGuildManager().getMember(focusedGuildId, e.getPlayer().getUniqueId()).join();
             if (self.hiddenByMember()) {
-                e.getPlayer().sendMessage(VMessages.formatComponent(e.getPlayer(), "generic.not_delivered_hide").color(NamedTextColor.RED));
-                e.setResult(PlayerChatEvent.ChatResult.denied());
+                e.getPlayer().sendMessage(ChatColor.RED + SMessages.format(e.getPlayer(), "generic.not_delivered_hide"));
+                e.setCancelled(true);
                 return;
             }
         } catch (CompletionException ex) {
@@ -153,11 +153,11 @@ public final class ChatListener {
             return; // not in guild
         }
         if (message.startsWith("!")) {
-            // if the message starts with !, send to the backend without the first !
-            e.setResult(PlayerChatEvent.ChatResult.message(message.substring(1)));
+            // if the message starts with !, skip the event without the first !
+            e.setMessage(e.getMessage().substring(1));
             return;
         }
-        e.setResult(PlayerChatEvent.ChatResult.denied());
+        e.setCancelled(true);
 
         try {
             long hideAllUntil = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
@@ -171,11 +171,11 @@ public final class ChatListener {
                 }
             });
             if (hideAllUntil > System.currentTimeMillis()) {
-                e.getPlayer().sendMessage(VMessages.formatComponent(e.getPlayer(), "generic.not_delivered_hideall").color(NamedTextColor.RED));
+                e.getPlayer().sendMessage(ChatColor.RED + SMessages.format(e.getPlayer(), "generic.not_delivered_hideall"));
                 return;
             }
         } catch (SQLException ex) {
-            VelocityPlugin.getPlugin().getLogger().warn("Failed to check hide all state", ex);
+            Logger.getCurrentLogger().warn("Failed to check hide all state", ex);
         }
 
         String transliteratedMessage = null;
@@ -193,10 +193,10 @@ public final class ChatListener {
 
         GuildMessagePacket packet = new GuildMessagePacket(
                 focusedGuildId,
-                e.getPlayer().getCurrentServer().orElseThrow(IllegalStateException::new).getServerInfo().getName(),
+                SpigotPlugin.getInstance().server,
                 e.getPlayer().getUniqueId(),
                 message,
                 transliteratedMessage);
-        VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_MESSAGE.getName(), packet);
+        SpigotPlugin.getInstance().getJedisBox().getPubSubHandler().publish(Protocol.GUILD_MESSAGE.getName(), packet);
     }
 }

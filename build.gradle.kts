@@ -1,3 +1,4 @@
+import org.apache.tools.ant.filters.ReplaceTokens
 import java.util.*
 
 plugins {
@@ -16,7 +17,7 @@ allprojects {
     }
 
     group = "net.azisaba.interchat"
-    version = "2.8.0-SNAPSHOT"
+    version = "2.9.0-SNAPSHOT"
 
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(8))
@@ -77,6 +78,16 @@ subprojects {
     tasks {
         shadowJar {
             archiveFileName.set("${this@subprojects.parent!!.name}-${this@subprojects.name}-${this@subprojects.version}.jar")
+        }
+
+        processResources {
+            doNotTrackState("Some file should be updated every time")
+            duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
+            from(sourceSets.main.get().resources.srcDirs) {
+                filter(ReplaceTokens::class, mapOf("tokens" to mapOf("version" to project.version.toString())))
+                filteringCharset = "UTF-8"
+            }
         }
     }
 }

@@ -1,14 +1,14 @@
-package net.azisaba.interchat.velocity.database;
+package net.azisaba.interchat.spigot.database;
 
-import com.velocitypowered.api.command.CommandSource;
-import com.velocitypowered.api.proxy.Player;
 import com.zaxxer.hikari.HikariDataSource;
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.util.QueryExecutor;
-import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.api.util.SQLThrowableConsumer;
 import net.azisaba.interchat.api.util.SQLThrowableFunction;
+import net.azisaba.interchat.spigot.SpigotPlugin;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 import org.intellij.lang.annotations.Language;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -20,7 +20,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.UUID;
 
-@SuppressWarnings({"SqlNoDataSourceInspection", "SqlResolve"})
+@SuppressWarnings({"SqlResolve", "SqlNoDataSourceInspection"})
 public final class DatabaseManager implements QueryExecutor {
     private final @NotNull HikariDataSource dataSource;
 
@@ -171,12 +171,12 @@ public final class DatabaseManager implements QueryExecutor {
     }
 
     public void submitLog(long guildId, @NotNull Player player, @NotNull String description) {
-        submitLog(guildId, player.getUniqueId().toString(), player.getUsername(), description);
+        submitLog(guildId, player.getUniqueId().toString(), player.getName(), description);
     }
 
-    public void submitLog(long guildId, @NotNull CommandSource source, @NotNull String description) {
-        if (source instanceof Player player) {
-            submitLog(guildId, player, description);
+    public void submitLog(long guildId, @NotNull CommandSender source, @NotNull String description) {
+        if (source instanceof Player) {
+            submitLog(guildId, (Player) source, description);
         } else {
             submitLog(guildId, new UUID(0, 0).toString(), "Console", description);
         }
@@ -184,6 +184,6 @@ public final class DatabaseManager implements QueryExecutor {
 
     @NotNull
     public static DatabaseManager get() {
-        return VelocityPlugin.getPlugin().getDatabaseManager();
+        return SpigotPlugin.getInstance().getDatabaseManager();
     }
 }

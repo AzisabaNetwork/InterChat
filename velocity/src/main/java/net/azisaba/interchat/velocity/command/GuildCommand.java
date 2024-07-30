@@ -58,7 +58,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-@SuppressWarnings("SameReturnValue")
+@SuppressWarnings({"SameReturnValue", "SqlResolve", "SqlNoDataSourceInspection"})
 public class GuildCommand extends AbstractCommand {
     private static final int LINK_EXPIRE_MINUTES = 10;
     private static final List<String> BLOCKED_GUILD_NAMES =
@@ -1112,11 +1112,15 @@ public class GuildCommand extends AbstractCommand {
         }
         User user = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join();
         try {
-            if (user.focusedGuild() == selectedGuild || player.getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal()) {
+            boolean editingSignedMessageUnsupported =
+                    player.getProtocolVersion().ordinal() >= ProtocolVersion.valueOf("MINECRAFT_1_19_1").ordinal() &&
+                            !ChatListener.FORWARD_TO_BACKEND.contains(player.getCurrentServer().orElseThrow().getServerInfo().getName());
+            if (user.focusedGuild() == selectedGuild || editingSignedMessageUnsupported) {
                 // 1.19.1+ does not support this feature for these reasons:
                 // - canceling the chat breaks the chain, and verification on the server side will fail, resulting in a kick
                 // - the message needs to be unsigned if we modify the chat message, but then the chain breaks
                 // also see https://github.com/PaperMC/Velocity/issues/804 for more details on why this doesn't work
+                // If backend server has InterChat (spigot plugin) installed, this feature will work as expected.
 
                 // remove focused guild
                 DatabaseManager.get().query("UPDATE `players` SET `focused_guild` = -1 WHERE `id` = ?", stmt -> {

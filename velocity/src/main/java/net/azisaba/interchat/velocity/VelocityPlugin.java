@@ -8,6 +8,8 @@ import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.messages.LegacyChannelIdentifier;
+import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
 import net.azisaba.interchat.api.InterChatProviderProvider;
 import net.azisaba.interchat.api.network.JedisBox;
 import net.azisaba.interchat.api.network.ProxyPacketListener;
@@ -19,6 +21,7 @@ import net.azisaba.interchat.velocity.database.DatabaseConfig;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
 import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.listener.JoinListener;
+import net.azisaba.interchat.velocity.listener.PluginMessageListener;
 import net.azisaba.interchat.velocity.network.ProxyPacketListenerImpl;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -57,7 +60,7 @@ public class VelocityPlugin {
         Messages.load();
         logger.info("Loading config...");
         MapEx<Object, Object> config = new MapEx<>(new Yaml().load(Files.newInputStream(dataDirectory.resolve("config.yml"))));
-        this.jedisBox = createJedisBos(config);
+        this.jedisBox = createJedisBox(config);
         MapEx<Object, Object> databaseConfig = config.getMap("database");
         if (databaseConfig == null) {
             throw new RuntimeException("database section is not found in config.yml");
@@ -74,7 +77,7 @@ public class VelocityPlugin {
     }
 
     @Contract("_ -> new")
-    private @NotNull JedisBox createJedisBos(@NotNull MapEx<Object, Object> config) {
+    private @NotNull JedisBox createJedisBox(@NotNull MapEx<Object, Object> config) {
         MapEx<Object, Object> redisMap = config.getMap("redis");
         if (redisMap == null) {
             throw new RuntimeException("redis section is not found in config.yml");
@@ -95,8 +98,12 @@ public class VelocityPlugin {
 
     @Subscribe
     public void onProxyInitialization(ProxyInitializeEvent e) {
+        server.getChannelRegistrar().register(
+                new LegacyChannelIdentifier("InterChat"),
+                MinecraftChannelIdentifier.from("interchat:main"));
         server.getEventManager().register(this, new ChatListener());
         server.getEventManager().register(this, new JoinListener());
+        server.getEventManager().register(this, new PluginMessageListener());
         server.getCommandManager().register(new GuildCommand(this).createCommand());
         server.getCommandManager().register(new GuildAdminCommand().createCommand());
         server.getCommandManager().register(new GShortCommand(this).createCommand());

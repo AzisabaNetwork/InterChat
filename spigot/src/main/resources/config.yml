@@ -1,13 +1,3 @@
-server-alias:
-  liferesource: life
-  lifepve: life
-  lifepve1: life
-  lifepve2: life
-  lifepve3: life
-  lifeevent: life
-  lifetravel: life
-  lifeafk: life
-
 redis:
   hostname: localhost
   port: 6379
@@ -25,7 +15,6 @@ database:
   hostname: localhost
   port: 3306
   name: interchat
-  guildChatDiscordName: guildchatdiscord
   username: interchat
   password: interchat
   properties:

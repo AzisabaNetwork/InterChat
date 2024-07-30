@@ -1,8 +1,7 @@
-package net.azisaba.interchat.velocity;
+package net.azisaba.interchat.api.data;
 
 import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
-import net.azisaba.interchat.api.data.UserDataProvider;
 import net.azisaba.interchat.api.util.ByteStreams;
 import org.jetbrains.annotations.NotNull;
 
@@ -20,7 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * A user data provider that uses workers backend as a provider. You need to call {@link #requestUpdate(UUID, String)}
  * to populate the data.
  */
-class WorkersUserDataProvider implements UserDataProvider {
+public class WorkersUserDataProvider implements UserDataProvider {
     private final Map<String, Long> requestDataCooldown = new ConcurrentHashMap<>();
     private final Map<UUID, Map<String, String>> prefix = new ConcurrentHashMap<>();
 
@@ -49,7 +48,7 @@ class WorkersUserDataProvider implements UserDataProvider {
         InterChatProvider.get().getAsyncExecutor().execute(() -> {
             try {
                 String prefixData = getPrefixData(uuid, server);
-                if (!prefixData.isBlank()) {
+                if (!prefixData.isEmpty() && !prefixData.equals(" ")) {
                     this.prefix.put(uuid, Collections.singletonMap(server, prefixData));
                 }
             } catch (Exception e) {

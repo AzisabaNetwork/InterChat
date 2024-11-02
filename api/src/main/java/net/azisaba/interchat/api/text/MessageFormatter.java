@@ -100,14 +100,9 @@ public final class MessageFormatter {
             @Nullable String transliteratedMessage,
             @NotNull Map<@NotNull String, @NotNull String> serverAlias
     ) {
-        String msg = message;
-        String preReplace = "";
-        String preReplaceB = ""; // with bracket
-        if (transliteratedMessage != null) {
-            msg = transliteratedMessage;
-            preReplace = message;
-            preReplaceB = "(" + message + ")";
-        }
+        String msg = transliteratedMessage != null ? transliteratedMessage : message;
+        String preReplace = transliteratedMessage != null ? message : "";
+        String preReplaceB = transliteratedMessage != null ? "(" + message + ")" : ""; // with bracket
         UserDataProvider userDataProvider = InterChatProvider.get().getUserDataProvider();
         Map<String, String> prefix = userDataProvider.getPrefix(senderInfo.getUser().id());
         Map<String, String> suffix = userDataProvider.getSuffix(senderInfo.getUser().id());
@@ -120,24 +115,7 @@ public final class MessageFormatter {
                 return map.get("global");
             }
         };
-        BiConsumer<Matcher, Map<String, String>> consumer = (matcher, map) -> {
-            while (matcher.find()) {
-                String mServer = matcher.group(1);
-                if (mServer != null) mServer = mServer.substring(1);
-                if (mServer == null || mServer.isEmpty()) {
-                    mServer = serverAlias.getOrDefault(senderInfo.getServer(), senderInfo.getServer());
-                }
-                String mDefault = matcher.group(2);
-                if (mDefault != null) {
-                    mDefault = mDefault.substring(1);
-                } else {
-                    mDefault = "";
-                }
-                atomicFormat.set(atomicFormat.get().replace(matcher.group(), getOrDefault(getValueOrGlobal.apply(map, mServer), mDefault)));
-            }
-        };
-        consumer.accept(PREFIX_PATTERN.matcher(format), prefix);
-        consumer.accept(SUFFIX_PATTERN.matcher(format), suffix);
+        extractPattern(format, senderInfo, serverAlias, prefix, suffix, atomicFormat, getValueOrGlobal);
         return atomicFormat.get()
                 .replace("%gname", guild.name())
                 .replace("%server", senderInfo.getServer())
@@ -154,6 +132,66 @@ public final class MessageFormatter {
                 .replace("%y", Optional.ofNullable(senderInfo.getPos()).map(WorldPos::getY).orElse(0).toString())
                 .replace("%z", Optional.ofNullable(senderInfo.getPos()).map(WorldPos::getZ).orElse(0).toString())
                 ;
+    }
+
+    public static @NotNull String formatPrivateChat(
+            @NotNull String format,
+            @NotNull SenderInfo sender,
+            @NotNull User receiver,
+            @NotNull String message,
+            @Nullable String transliteratedMessage,
+            @NotNull Map<@NotNull String, @NotNull String> serverAlias
+    ) {
+        String msg = transliteratedMessage != null ? transliteratedMessage : message;
+        String preReplace = transliteratedMessage != null ? message : "";
+        String preReplaceB = transliteratedMessage != null ? "(" + message + ")" : ""; // with bracket
+        UserDataProvider userDataProvider = InterChatProvider.get().getUserDataProvider();
+        Map<String, String> senderPrefix = userDataProvider.getPrefix(sender.getUser().id());
+        Map<String, String> senderSuffix = userDataProvider.getSuffix(sender.getUser().id());
+        AtomicReference<String> atomicFormat = new AtomicReference<>(format);
+        BiFunction<Map<String, String>, String, String> getValueOrGlobal = (map, key) -> {
+            if (map.containsKey(key)) {
+                return map.get(key);
+            } else {
+                return map.get("global");
+            }
+        };
+        extractPattern(format, sender, serverAlias, senderPrefix, senderSuffix, atomicFormat, getValueOrGlobal);
+        return atomicFormat.get()
+                .replace("%s-server", sender.getServer())
+                .replace("%s-playername", sender.getUser().name())
+                .replace("%s-prefix", getOrDefault(getValueOrGlobal.apply(senderPrefix, serverAlias.getOrDefault(sender.getServer(), sender.getServer())), ""))
+                .replace("%s-suffix", getOrDefault(getValueOrGlobal.apply(senderSuffix, serverAlias.getOrDefault(sender.getServer(), sender.getServer())), ""))
+                .replace("%s-world", Optional.ofNullable(sender.getPos()).map(WorldPos::getWorld).orElse("null"))
+                .replace("%s-x", Optional.ofNullable(sender.getPos()).map(WorldPos::getX).orElse(0).toString())
+                .replace("%s-y", Optional.ofNullable(sender.getPos()).map(WorldPos::getY).orElse(0).toString())
+                .replace("%s-z", Optional.ofNullable(sender.getPos()).map(WorldPos::getZ).orElse(0).toString())
+                .replace("%r-playername", receiver.name())
+                .replace("%msg", msg)
+                .replace("%prereplace-b", preReplaceB)
+                .replace("%prereplace", preReplace)
+                ;
+    }
+
+    private static void extractPattern(@NotNull String format, @NotNull SenderInfo sender, @NotNull Map<@NotNull String, @NotNull String> serverAlias, Map<String, String> senderPrefix, Map<String, String> senderSuffix, AtomicReference<String> atomicFormat, BiFunction<Map<String, String>, String, String> getValueOrGlobal) {
+        BiConsumer<Matcher, Map<String, String>> consumer = (matcher, map) -> {
+            while (matcher.find()) {
+                String mServer = matcher.group(1);
+                if (mServer != null) mServer = mServer.substring(1);
+                if (mServer == null || mServer.isEmpty()) {
+                    mServer = serverAlias.getOrDefault(sender.getServer(), sender.getServer());
+                }
+                String mDefault = matcher.group(2);
+                if (mDefault != null) {
+                    mDefault = mDefault.substring(1);
+                } else {
+                    mDefault = "";
+                }
+                atomicFormat.set(atomicFormat.get().replace(matcher.group(), getOrDefault(getValueOrGlobal.apply(map, mServer), mDefault)));
+            }
+        };
+        consumer.accept(PREFIX_PATTERN.matcher(format), senderPrefix);
+        consumer.accept(SUFFIX_PATTERN.matcher(format), senderSuffix);
     }
 
     @Contract(value = "null, _ -> param2; !null, _ -> param1", pure = true)

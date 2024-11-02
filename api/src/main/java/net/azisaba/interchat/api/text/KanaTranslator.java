@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 public class KanaTranslator {
     public static final char SKIP_CHAR = '#';
     @NotNull
-    public static final String SKIP_CHAR_STRING = Character.toString(SKIP_CHAR);
+    public static final String SKIP_CHAR_STRING = "#";
     private static final String REGEX_URL = "https?://[\\w/:%#$&?()~.=+\\-]+";
     private static final Map<String, List<String>> CACHE = new ConcurrentHashMap<>();
 
@@ -31,7 +31,7 @@ public class KanaTranslator {
             return Collections.emptyList();
         }
         text = text.replaceAll(REGEX_URL, " ");
-        if (text.trim().length() == 0) {
+        if (text.trim().isEmpty()) {
             return Collections.emptyList();
         }
         text = RomajiTextReader.parse(text);

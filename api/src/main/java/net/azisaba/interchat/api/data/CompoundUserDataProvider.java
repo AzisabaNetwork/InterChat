@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.UnmodifiableView;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
 public class CompoundUserDataProvider implements UserDataProvider {
     private final List<UserDataProvider> providers;
@@ -47,5 +48,14 @@ public class CompoundUserDataProvider implements UserDataProvider {
             map.putAll(provider.getSuffix(uuid));
         }
         return map;
+    }
+
+    @Override
+    public @NotNull CompletableFuture<Void> requestUpdate(@NotNull UUID uuid, @NotNull String server) {
+        List<CompletableFuture<?>> cfs = new ArrayList<>();
+        for (UserDataProvider p : providers) {
+            cfs.add(p.requestUpdate(uuid, server));
+        }
+        return CompletableFuture.allOf(cfs.toArray(new CompletableFuture[0]));
     }
 }

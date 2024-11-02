@@ -4,6 +4,8 @@ import net.azisaba.interchat.api.network.protocol.*;
 import org.jetbrains.annotations.NotNull;
 
 public interface PacketListener {
+    default void handlePrivateMessage(@NotNull PrivateMessagePacket packet) {}
+
     default void handleGuildMessage(@NotNull GuildMessagePacket packet) {}
     default void handleGuildSoftDelete(@NotNull GuildSoftDeletePacket packet) {}
     default void handleGuildInvite(@NotNull GuildInvitePacket packet) {}

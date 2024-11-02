@@ -400,6 +400,37 @@ public class GuildCommand extends AbstractCommand {
                                 .executes(ctx -> executeHideAllCommand((Player) ctx.getSource(), StringArgumentType.getString(ctx, "duration")))
                         )
                 )
+                // everyone
+                .then(literal("block")
+                        .requires(source -> source.hasPermission("interchat.guild.block"))
+                        .then(argument("player", StringArgumentType.word())
+                                .suggests(suggestPlayers())
+                                .executes(ctx -> executeBlock((Player) ctx.getSource(), UUIDArgumentType.getPlayerWithAPI(ctx, "player")))
+                        )
+                )
+                // everyone
+                .then(literal("unblock")
+                        .requires(source -> source.hasPermission("interchat.guild.unblock"))
+                        .then(argument("player", StringArgumentType.word())
+                                .suggests(suggestPlayers())
+                                .executes(ctx -> executeUnblock((Player) ctx.getSource(), UUIDArgumentType.getPlayerWithAPI(ctx, "player")))
+                        )
+                )
+                // everyone
+                .then(literal("block-list")
+                        .requires(source -> source.hasPermission("interchat.guild.block-list"))
+                        .executes(ctx -> executeBlockList((Player) ctx.getSource()))
+                )
+                // everyone
+                .then(literal("tell")
+                        .requires(source -> source.hasPermission("interchat.guild.tell"))
+                        .then(argument("player", StringArgumentType.word())
+                                .suggests(suggestPlayers())
+                                .then(argument("message", StringArgumentType.greedyString())
+                                        .executes(ctx -> executeTell((Player) ctx.getSource(), UUIDArgumentType.getPlayerWithAPI(ctx, "player"), StringArgumentType.getString(ctx, "message")))
+                                )
+                        )
+                )
 
                 // handle chat
                 .then(argument("guild", GuildArgumentType.guild())
@@ -1308,6 +1339,85 @@ public class GuildCommand extends AbstractCommand {
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
+        return 1;
+    }
+
+    private static int executeBlock(@NotNull Player player, @NotNull UUID target) {
+        User user = InterChatProvider.get().getUserManager().fetchUser(target).join();
+        boolean blocked = InterChatProvider.get().getUserManager().blockUser(player.getUniqueId(), target).join();
+        if (blocked) {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.block.success", user.name()).color(NamedTextColor.GREEN));
+            return 1;
+        } else {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.block.already_blocked", user.name()).color(NamedTextColor.RED));
+            return 0;
+        }
+    }
+
+    private static int executeUnblock(@NotNull Player player, @NotNull UUID target) {
+        User user = InterChatProvider.get().getUserManager().fetchUser(target).join();
+        InterChatProvider.get().getUserManager().unblockUser(player.getUniqueId(), target).join();
+        player.sendMessage(VMessages.formatComponent(player, "command.guild.unblock.success", user.name()).color(NamedTextColor.GREEN));
+        return 1;
+    }
+
+    private static int executeBlockList(@NotNull Player player) {
+        List<UUID> blocked = InterChatProvider.get().getUserManager().fetchBlockedUsers(player.getUniqueId()).join();
+        player.sendMessage(VMessages.formatComponent(player, "command.guild.block_list.title").color(NamedTextColor.GREEN));
+        InterChatProvider.get().getUserManager().fetchUsers(blocked).join().forEach(user -> player.sendMessage(Component.text("- ").color(NamedTextColor.GRAY)
+                .append(Component.text(user.name(), NamedTextColor.WHITE))
+                .append(Component.text(" (" + user.id() + ")").color(NamedTextColor.DARK_GRAY))
+                .hoverEvent(HoverEvent.showText(VMessages.formatComponent(player, "command.guild.block_list.hover", user.id())))
+        ));
+        return blocked.size();
+    }
+
+    public static int executeTell(@NotNull Player player, @NotNull UUID target, @NotNull String message) {
+        if (player.getUniqueId().equals(target)) {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.tell.self").color(NamedTextColor.RED));
+            return 0;
+        }
+        User user = InterChatProvider.get().getUserManager().fetchUser(target).join();
+        if (InterChatProvider.get().getUserManager().isBlocked(player.getUniqueId(), target).join()) {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.tell.blocked", user.name()).color(NamedTextColor.RED));
+            return 0;
+        }
+        String transliteratedMessage = null;
+        if (message.startsWith(KanaTranslator.SKIP_CHAR_STRING)) {
+            message = message.substring(1);
+        } else {
+            boolean translateKana = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join().translateKana();
+            if (translateKana) {
+                List<String> suggestions = KanaTranslator.translateSync(message);
+                if (!suggestions.isEmpty()) {
+                    transliteratedMessage = suggestions.get(0);
+                }
+            }
+        }
+        User sender = InterChatProvider.get().getUserManager().fetchUser(player.getUniqueId()).join();
+        String serverName = player.getCurrentServer().orElseThrow().getServerInfo().getName();
+        Protocol.PRIVATE_MESSAGE.send(
+                VelocityPlugin.getPlugin().getJedisBox().getPubSubHandler(),
+                new PrivateMessagePacket(player.getUniqueId(), target, serverName, message, transliteratedMessage)
+        );
+        WorldPos pos = null;
+        try {
+            pos = VelocityPlugin.getPlugin().getJedisBox().get(RedisKeys.azisabaReportPlayerPos(player.getUniqueId()), PlayerPosData.NETWORK_CODEC).toWorldPos();
+        } catch (Exception ignored) {
+        }
+        var info = new SenderInfo(sender, serverName, null, pos);
+        String formatted = MessageFormatter.formatPrivateChat(
+                PrivateMessagePacket.FORMAT,
+                info,
+                user,
+                message,
+                transliteratedMessage,
+                VelocityPlugin.getPlugin().getServerAlias()
+        );
+        player.sendMessage(VMessages.fromLegacyText(formatted)
+                .hoverEvent(HoverEvent.showText(VMessages.formatComponent(player, "command.guild.tell.hover", user.name())))
+                .clickEvent(ClickEvent.suggestCommand("/" + COMMAND_NAME + " tell " + user.name() + " "))
+        );
         return 1;
     }
 

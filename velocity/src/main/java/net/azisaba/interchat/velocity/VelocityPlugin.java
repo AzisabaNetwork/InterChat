@@ -1,6 +1,7 @@
 package net.azisaba.interchat.velocity;
 
 import com.google.inject.Inject;
+import com.velocitypowered.api.command.BrigadierCommand;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
@@ -104,11 +105,15 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new ChatListener());
         server.getEventManager().register(this, new JoinListener());
         server.getEventManager().register(this, new PluginMessageListener());
-        server.getCommandManager().register(new GuildCommand(this).createCommand());
-        server.getCommandManager().register(new GuildAdminCommand().createCommand());
-        server.getCommandManager().register(new GShortCommand(this).createCommand());
-        server.getCommandManager().register(new GSShortCommand(this).createCommand());
-        server.getCommandManager().register(new GuildTestCommand().createCommand());
+        registerCommand(new GuildCommand(this).createCommand());
+        registerCommand(new GShortCommand(this).createCommand());
+        registerCommand(new GSShortCommand(this).createCommand());
+        registerCommand(new GuildTestCommand().createCommand());
+        registerCommand(new GTellCommand().createCommand());
+    }
+
+    private void registerCommand(BrigadierCommand command) {
+        server.getCommandManager().register(server.getCommandManager().metaBuilder(command).plugin(this).build(), command);
     }
 
     @Subscribe

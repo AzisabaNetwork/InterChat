@@ -81,11 +81,11 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `hide_all_until` BIGINT NOT NULL DEFAULT 0," +
                     "  PRIMARY KEY (`id`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
-//            statement.executeUpdate("CREATE TABLE IF NOT EXISTS `hidden_players` (" +
-//                    "  `id` VARCHAR(36) NOT NULL," +
-//                    "  `target` VARCHAR(36) NOT NULL," +
-//                    "  PRIMARY KEY (`id`, `target`)" +
-//                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS `blocked_users` (" +
+                    "  `id` VARCHAR(36) NOT NULL," +
+                    "  `blocked_uuid` VARCHAR(36) NOT NULL," +
+                    "  PRIMARY KEY (`id`, `blocked_uuid`)" +
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
         });
     }
 

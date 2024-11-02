@@ -25,6 +25,7 @@ import net.azisaba.interchat.velocity.text.VMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.intellij.lang.annotations.Subst;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 public final class ProxyPacketListenerImpl implements ProxyPacketListener {
     private static final Component separator = Component.text("------------------------------", NamedTextColor.YELLOW); // 30 -'s
@@ -45,6 +47,60 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
     @Contract(pure = true)
     public ProxyPacketListenerImpl(@NotNull VelocityPlugin plugin) {
         this.plugin = plugin;
+    }
+
+    @Override
+    public void handlePrivateMessage(@NotNull PrivateMessagePacket packet) {
+        InterChatProvider.get().getUserDataProvider().requestUpdate(packet.sender(), packet.server());
+        InterChatProvider.get().getUserDataProvider().requestUpdate(packet.receiver(), packet.server());
+        CompletableFuture<User> senderFuture = plugin.getAPI().getUserManager().fetchUser(packet.sender());
+        CompletableFuture<User> receiverFuture = plugin.getAPI().getUserManager().fetchUser(packet.receiver());
+        AsyncUtil.collectAsync(senderFuture, receiverFuture, (sender, receiver) -> {
+            if (sender == null || receiver == null) {
+                return;
+            }
+            WorldPos pos = null;
+            try {
+                pos = plugin.getJedisBox().get(RedisKeys.azisabaReportPlayerPos(sender.id()), PlayerPosData.NETWORK_CODEC).toWorldPos();
+            } catch (Exception ignored) {
+            }
+            var info = new SenderInfo(sender, packet.server(), null, pos);
+            String formattedText = MessageFormatter.formatPrivateChat(
+                    PrivateMessagePacket.FORMAT,
+                    info,
+                    receiver,
+                    packet.message(),
+                    packet.transliteratedMessage(),
+                    VelocityPlugin.getPlugin().getServerAlias());
+            Component formattedComponent = VMessages.fromLegacyText(formattedText);
+            Logger.getCurrentLogger().info("[Private Chat] {} -> {} : {}", sender.name(), VMessages.toPlainText(formattedComponent));
+            plugin.getServer().getPlayer(receiver.id()).ifPresent(player -> {
+                try {
+                    long hideAllUntil = DatabaseManager.get().getPrepareStatement("SELECT `hide_all_until` FROM `players` WHERE `id` = ?", ps -> {
+                        ps.setString(1, receiver.id().toString());
+                        try (ResultSet rs = ps.executeQuery()) {
+                            if (rs.next()) {
+                                return rs.getLong("hide_all_until");
+                            } else {
+                                return 0L;
+                            }
+                        }
+                    });
+                    if (hideAllUntil > System.currentTimeMillis()) {
+                        return;
+                    }
+                    // check if user is blocked
+                    if (plugin.getAPI().getUserManager().isBlocked(receiver.id(), sender.id()).join()) {
+                        return;
+                    }
+                } catch (SQLException | CompletionException e) {
+                    plugin.getLogger().warn("Failed to fetch data for {}", receiver.id(), e);
+                }
+                player.sendMessage(formattedComponent
+                        .hoverEvent(HoverEvent.showText(VMessages.formatComponent(player, "generic.hover.click_to_reply")))
+                        .clickEvent(ClickEvent.suggestCommand("/" + GuildCommand.COMMAND_NAME + " tell " + sender.name() + " ")));
+            });
+        });
     }
 
     @Override
@@ -74,7 +130,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                     VelocityPlugin.getPlugin().getServerAlias());
             Component formattedComponent = VMessages.fromLegacyText(formattedText);
             Logger.getCurrentLogger().info("[Guild Chat - {}] {} : {}", guild.name(), user.name(), VMessages.toPlainText(formattedComponent));
-            members.forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
+            members.parallelStream().forEach(member -> plugin.getServer().getPlayer(member.uuid()).ifPresent(player -> {
                 if (member.hiddenByMember()) {
                     return;
                 }
@@ -92,8 +148,12 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
                     if (hideAllUntil > System.currentTimeMillis()) {
                         return;
                     }
-                } catch (SQLException e) {
-                    plugin.getLogger().warn("Failed to get hide_all_until value from {}", member.uuid(), e);
+                    // check if user is blocked
+                    if (plugin.getAPI().getUserManager().isBlocked(member.uuid(), user.id()).join()) {
+                        return;
+                    }
+                } catch (SQLException | CompletionException e) {
+                    plugin.getLogger().warn("Failed to fetch data for {}", member.uuid(), e);
                 }
                 player.sendMessage(formattedComponent);
             }));

@@ -47,7 +47,12 @@ public class UUIDArgumentType {
             return opt.get().getUniqueId();
         }
         try {
-            return UUID.fromString(value);
+            UUID uuid = UUID.fromString(value);
+            if (uuid.version() == 4) {
+                return uuid;
+            } else {
+                throw INVALID_UUID.apply(ctx, value);
+            }
         } catch (IllegalArgumentException e) {
             throw INVALID_UUID.apply(ctx, value);
         }

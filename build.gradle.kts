@@ -16,7 +16,7 @@ allprojects {
     }
 
     group = "net.azisaba.interchat"
-    version = "2.9.1-SNAPSHOT"
+    version = "2.10.0"
 
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(8))

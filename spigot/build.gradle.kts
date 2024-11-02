@@ -7,8 +7,8 @@ repositories {
 dependencies {
     api(project(":api"))
     implementation("com.zaxxer:HikariCP:4.0.3")
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
-    implementation("redis.clients:jedis:5.1.4")
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.5.0")
+    implementation("redis.clients:jedis:5.2.0")
     compileOnly("org.spigotmc:spigot-api:1.12.2-R0.1-SNAPSHOT")
 }
 

@@ -1,11 +1,10 @@
 import org.apache.tools.ant.filters.ReplaceTokens
-import java.util.*
 
 plugins {
     java
     `java-library`
     `maven-publish`
-    id("com.github.johnrengelman.shadow") version "7.1.2"
+    id("com.gradleup.shadow") version "8.3.4"
 }
 
 allprojects {
@@ -13,11 +12,11 @@ allprojects {
         plugin("java")
         plugin("java-library")
         plugin("maven-publish")
-        plugin("com.github.johnrengelman.shadow")
+        plugin("com.gradleup.shadow")
     }
 
     group = "net.azisaba.interchat"
-    version = "2.9.0-SNAPSHOT"
+    version = "2.9.1-SNAPSHOT"
 
     java {
         toolchain.languageVersion.set(JavaLanguageVersion.of(8))
@@ -31,7 +30,7 @@ allprojects {
     }
 
     dependencies {
-        compileOnlyApi("org.jetbrains:annotations:23.0.0")
+        compileOnlyApi("org.jetbrains:annotations:26.0.1")
         testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.2")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.2")
     }

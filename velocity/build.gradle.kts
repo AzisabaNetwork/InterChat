@@ -8,10 +8,10 @@ java {
 
 dependencies {
     api(project(":api"))
-    implementation("com.zaxxer:HikariCP:5.0.1")
-    implementation("org.mariadb.jdbc:mariadb-java-client:3.0.6")
-    compileOnly("com.velocitypowered:velocity-api:3.1.1")
-    annotationProcessor("com.velocitypowered:velocity-api:3.1.1")
+    implementation("com.zaxxer:HikariCP:6.0.0")
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.5.0")
+    compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
+    annotationProcessor("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     compileOnly("net.luckperms:api:5.4")
 }
 

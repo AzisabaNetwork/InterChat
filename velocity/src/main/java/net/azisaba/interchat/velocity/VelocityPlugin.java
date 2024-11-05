@@ -106,6 +106,7 @@ public class VelocityPlugin {
         server.getEventManager().register(this, new JoinListener());
         server.getEventManager().register(this, new PluginMessageListener());
         registerCommand(new GuildCommand(this).createCommand());
+        registerCommand(new GuildAdminCommand(this).createCommand());
         registerCommand(new GShortCommand(this).createCommand());
         registerCommand(new GSShortCommand(this).createCommand());
         registerCommand(new GuildTestCommand().createCommand());

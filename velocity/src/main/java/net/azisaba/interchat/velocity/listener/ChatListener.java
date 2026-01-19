@@ -110,6 +110,7 @@ public final class ChatListener {
     @Subscribe
     public void onPostLogin(PostLoginEvent e) {
         removeCache(e.getPlayer().getUniqueId());
+        GuildCommand.clearPresetCache(e.getPlayer().getUniqueId());
     }
 
     @Subscribe(order = PostOrder.LATE)

@@ -86,6 +86,12 @@ public final class DatabaseManager implements QueryExecutor {
                     "  `blocked_uuid` VARCHAR(36) NOT NULL," +
                     "  PRIMARY KEY (`id`, `blocked_uuid`)" +
                     ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
+            statement.executeUpdate("CREATE TABLE IF NOT EXISTS `guild_presets` (" +
+                    "  `uuid` VARCHAR(36) NOT NULL," +
+                    "  `number` INT NOT NULL," +
+                    "  `guild_id` BIGINT NOT NULL," +
+                    "  PRIMARY KEY (`uuid`, `number`)" +
+                    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci");
         });
     }
 

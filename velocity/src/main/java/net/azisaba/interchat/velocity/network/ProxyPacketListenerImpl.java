@@ -163,6 +163,7 @@ public final class ProxyPacketListenerImpl implements ProxyPacketListener {
     @Override
     public void handleGuildSoftDelete(@NotNull GuildSoftDeletePacket packet) {
         ChatListener.removeCacheWithGuildId(packet.guildId());
+        GuildCommand.removePresetCacheWithGuildId(packet.guildId());
         GuildManager guildManager = plugin.getAPI().getGuildManager();
         CompletableFuture<Guild> guildFuture = guildManager.fetchGuildById(packet.guildId());
         CompletableFuture<User> userFuture = plugin.getAPI().getUserManager().fetchUser(packet.actor());

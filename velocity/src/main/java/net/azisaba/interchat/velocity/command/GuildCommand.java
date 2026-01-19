@@ -67,6 +67,7 @@ public class GuildCommand extends AbstractCommand {
                     "create", "format", "chat", "delete", "select", "role", "invite", "kick", "ban", "ban-public", "unban", "pardon",
                     "leave", "dontinviteme", "toggleinvites", "accept", "reject", "info", "log", "jp-on", "jp-off",
                     "linkdiscord", "unlinkdiscord", "nick", "force-nick", "open", "join", "hideall", "hide-guild", "hide-player",
+                    "1", "2", "3", "4", "5", "6", "7", "8", "9",
                     // reserved names
                     "permission", "permissions"
             );
@@ -74,6 +75,8 @@ public class GuildCommand extends AbstractCommand {
     private static final Pattern GUILD_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9_\\-.+]{2,32}$");
     public static final String COMMAND_NAME = "guild";
     private static final Map<UUID, Long> LAST_GUILD_INVITE = new ConcurrentHashMap<>();
+    private static final long GUILD_PRESET_CACHE_TTL = TimeUnit.MINUTES.toMillis(10);
+    private static final Map<UUID, Map<Integer, Map.Entry<Long, Long>>> GUILD_PRESET_CACHE = new ConcurrentHashMap<>();
     private static final Function<UUID, User> ACTUAL_USER = Functions.memoize(1000 * 10, uuid ->
             InterChatProvider.get().getUserManager().fetchUser(uuid).join()
     );
@@ -96,6 +99,9 @@ public class GuildCommand extends AbstractCommand {
             // preview and suggest
             User user = ACTUAL_USER.apply(((Player) context.getSource()).getUniqueId());
             Guild guild = chatSuggestionGuildProvider.apply(context, user.id());
+            if (guild == null) {
+                return builder.buildFuture();
+            }
             GuildMember member = GUILD_MEMBER.apply(new AbstractMap.SimpleImmutableEntry<>(guild.id(), user.id()));
             String server = ((Player) context.getSource())
                     .getCurrentServer()
@@ -142,6 +148,61 @@ public class GuildCommand extends AbstractCommand {
         };
     }
 
+    static @Nullable Guild getPresetGuildForSuggestion(@NotNull UUID uuid, int presetNumber) {
+        long guildId = getPresetGuildId(uuid, presetNumber);
+        if (guildId == -1) {
+            return null;
+        }
+        try {
+            return InterChatProvider.get().getGuildManager().fetchGuildById(guildId).join();
+        } catch (CompletionException e) {
+            return null;
+        }
+    }
+
+    public static void clearPresetCache(@NotNull UUID uuid) {
+        GUILD_PRESET_CACHE.remove(uuid);
+    }
+
+    public static void removePresetCacheWithGuildId(long guildId) {
+        GUILD_PRESET_CACHE.forEach((uuid, presets) -> {
+            presets.entrySet().removeIf(entry -> entry.getValue().getValue() == guildId);
+            if (presets.isEmpty()) {
+                GUILD_PRESET_CACHE.remove(uuid);
+            }
+        });
+    }
+
+    private static void setPresetCache(@NotNull UUID uuid, int presetNumber, long guildId) {
+        Map<Integer, Map.Entry<Long, Long>> presets = GUILD_PRESET_CACHE.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>());
+        presets.put(presetNumber, new AbstractMap.SimpleImmutableEntry<>(System.currentTimeMillis() + GUILD_PRESET_CACHE_TTL, guildId));
+    }
+
+    private static long getPresetGuildId(@NotNull UUID uuid, int presetNumber) {
+        Map<Integer, Map.Entry<Long, Long>> presets = GUILD_PRESET_CACHE.computeIfAbsent(uuid, k -> new ConcurrentHashMap<>());
+        Map.Entry<Long, Long> entry = presets.get(presetNumber);
+        if (entry != null && entry.getKey() > System.currentTimeMillis()) {
+            return entry.getValue();
+        }
+        long guildId = -1L;
+        try {
+            guildId = DatabaseManager.get().getPrepareStatement("SELECT `guild_id` FROM `guild_presets` WHERE `uuid` = ? AND `number` = ?", stmt -> {
+                stmt.setString(1, uuid.toString());
+                stmt.setInt(2, presetNumber);
+                try (ResultSet rs = stmt.executeQuery()) {
+                    if (rs.next()) {
+                        return rs.getLong("guild_id");
+                    }
+                }
+                return -1L;
+            });
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to load guild preset {} for {}", presetNumber, uuid, e);
+        }
+        presets.put(presetNumber, new AbstractMap.SimpleImmutableEntry<>(System.currentTimeMillis() + GUILD_PRESET_CACHE_TTL, guildId));
+        return guildId;
+    }
+
     private final VelocityPlugin plugin;
 
     public GuildCommand(@NotNull VelocityPlugin plugin) {
@@ -150,7 +211,7 @@ public class GuildCommand extends AbstractCommand {
 
     @Override
     public @NotNull LiteralArgumentBuilder<CommandSource> createBuilder() {
-        return literal(COMMAND_NAME)
+        LiteralArgumentBuilder<CommandSource> builder = literal(COMMAND_NAME)
                 .requires(source -> source instanceof Player && source.hasPermission("interchat.guild"))
                 // everyone
                 .then(literal("create")
@@ -163,10 +224,10 @@ public class GuildCommand extends AbstractCommand {
                 .then(literal("format")
                         .requires(source -> source.hasPermission("interchat.guild.format"))
                         .then(argument("format", StringArgumentType.greedyString())
-                                .suggests((context, builder) -> {
+                                .suggests((context, b) -> {
                                     // suggest variables
                                     String last = context.getLastChild().getInput().substring(context.getLastChild().getInput().lastIndexOf(' ') + 1);
-                                    FORMAT_VARIABLES.stream().filter(s -> s.startsWith(last)).forEach(builder::suggest);
+                                    FORMAT_VARIABLES.stream().filter(s -> s.startsWith(last)).forEach(b::suggest);
 
                                     // format preview
                                     UUID uuid = ((Player) context.getSource()).getUniqueId();
@@ -186,7 +247,7 @@ public class GuildCommand extends AbstractCommand {
                                             "テスト",
                                             VelocityPlugin.getPlugin().getServerAlias()
                                     );
-                                    return builder.suggest(formatted.replace('&', '§')).buildFuture();
+                                    return b.suggest(formatted.replace('&', '§')).buildFuture();
                                 })
                                 .executes(ctx -> executeFormat((Player) ctx.getSource(), StringArgumentType.getString(ctx, "format")))
                         )
@@ -219,7 +280,7 @@ public class GuildCommand extends AbstractCommand {
                         .then(argument("member", GuildMemberArgumentType.guildMember())
                                 .suggests(suggestMembersOfGuild(GuildRole.OWNER))
                                 .then(argument("role", GuildRoleArgumentType.guildRole())
-                                        .suggests((ctx, builder) -> suggest(Arrays.stream(GuildRole.values()).map(Enum::name).map(String::toLowerCase), builder))
+                                        .suggests((ctx, b) -> suggest(Arrays.stream(GuildRole.values()).map(Enum::name).map(String::toLowerCase), b))
                                         .executes(ctx ->
                                                 executeRole(
                                                         (Player) ctx.getSource(),
@@ -446,6 +507,19 @@ public class GuildCommand extends AbstractCommand {
                                 )
                         )
                 );
+        for (int i = 1; i <= 9; i++) {
+            builder.then(buildPresetSetLiteral(i));
+        }
+        return builder;
+    }
+
+    private static @NotNull LiteralArgumentBuilder<CommandSource> buildPresetSetLiteral(int presetNumber) {
+        return literal(String.valueOf(presetNumber))
+                .requires(source -> source.hasPermission("interchat.guild.select"))
+                .then(argument("guild", GuildArgumentType.guild())
+                        .suggests(suggestGuildsOfMember(false))
+                        .executes(ctx -> executePresetSet((Player) ctx.getSource(), presetNumber, GuildArgumentType.get(ctx, "guild", false)))
+                );
     }
 
     /**
@@ -646,6 +720,38 @@ public class GuildCommand extends AbstractCommand {
             player.sendMessage(VMessages.formatComponent(player, "command.guild.select.error").color(NamedTextColor.RED));
         }
         return 0;
+    }
+
+    private static int executePresetSet(@NotNull Player player, int presetNumber, @NotNull Guild guild) {
+        try {
+            guild.getMember(player.getUniqueId()).join();
+        } catch (CompletionException e) {
+            player.sendMessage(VMessages.formatComponent(player, "command.error.unknown_guild", guild.name()).color(NamedTextColor.RED));
+            return 0;
+        }
+        try {
+            DatabaseManager.get().query("INSERT INTO `guild_presets` (`uuid`, `number`, `guild_id`) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE `guild_id` = VALUES(`guild_id`)", stmt -> {
+                stmt.setString(1, player.getUniqueId().toString());
+                stmt.setInt(2, presetNumber);
+                stmt.setLong(3, guild.id());
+                stmt.executeUpdate();
+            });
+            setPresetCache(player.getUniqueId(), presetNumber, guild.id());
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.preset.set.success", presetNumber, guild.name()).color(NamedTextColor.GREEN));
+        } catch (SQLException e) {
+            Logger.getCurrentLogger().error("Failed to set guild preset {} for {}", presetNumber, player.getUniqueId(), e);
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.preset.set.error").color(NamedTextColor.RED));
+        }
+        return 0;
+    }
+
+    static int executePresetChat(@NotNull Player player, int presetNumber, @NotNull String message) {
+        long presetGuildId = getPresetGuildId(player.getUniqueId(), presetNumber);
+        if (presetGuildId == -1) {
+            player.sendMessage(VMessages.formatComponent(player, "command.guild.preset.not_set", presetNumber, COMMAND_NAME, presetNumber).color(NamedTextColor.RED));
+            return 0;
+        }
+        return executeChat(player, message, presetGuildId);
     }
 
     private static int executeRole(@NotNull Player player, @NotNull GuildMember member, @NotNull GuildRole role) {

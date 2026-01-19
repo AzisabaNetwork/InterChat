@@ -9,6 +9,7 @@ import net.azisaba.interchat.api.network.Protocol;
 import net.azisaba.interchat.api.network.protocol.GuildSoftDeletePacket;
 import net.azisaba.interchat.velocity.VelocityPlugin;
 import net.azisaba.interchat.velocity.database.DatabaseManager;
+import net.azisaba.interchat.velocity.command.GuildCommand;
 import net.azisaba.interchat.velocity.listener.ChatListener;
 import org.jetbrains.annotations.NotNull;
 
@@ -36,6 +37,7 @@ public final class VelocityGuildManager extends SQLGuildManager implements Guild
                 stmt.executeUpdate();
             });
             ChatListener.removeCacheWithGuildId(guildId);
+            GuildCommand.removePresetCacheWithGuildId(guildId);
             // notify others
             UUID uuid;
             if (source instanceof Player) {

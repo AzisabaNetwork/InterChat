@@ -108,6 +108,9 @@ public class VelocityPlugin {
         registerCommand(new GuildCommand(this).createCommand());
         registerCommand(new GuildAdminCommand().createCommand());
         registerCommand(new GShortCommand(this).createCommand());
+        for (int i = 1; i <= 9; i++) {
+            registerCommand(new GPresetCommand(this, i).createCommand());
+        }
         registerCommand(new GSShortCommand(this).createCommand());
         registerCommand(new GuildTestCommand().createCommand());
         registerCommand(new GTellCommand().createCommand());

@@ -16,6 +16,7 @@ import net.azisaba.interchat.api.InterChatProvider;
 import net.azisaba.interchat.api.Logger;
 import net.azisaba.interchat.api.WorldPos;
 import net.azisaba.interchat.api.data.PlayerPosData;
+import net.azisaba.interchat.api.data.PlayerPresenceData;
 import net.azisaba.interchat.api.data.SenderInfo;
 import net.azisaba.interchat.api.guild.*;
 import net.azisaba.interchat.api.network.JedisBox;
@@ -39,6 +40,8 @@ import net.azisaba.interchat.velocity.listener.ChatListener;
 import net.azisaba.interchat.velocity.text.VMessages;
 import net.azisaba.interchat.velocity.util.DurationUtil;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.JoinConfiguration;
+import net.kyori.adventure.text.TextComponent;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -1171,13 +1174,31 @@ public class GuildCommand extends AbstractCommand {
         }
         player.sendMessage(VMessages.formatComponent(player, "command.guild.info.member_count", members.size(), guild.capacity()).color(NamedTextColor.GOLD));
         for (GuildRole role : GuildRole.values()) {
-            String players =
-                    members.stream()
+            JedisBox jedisBox = VelocityPlugin.getPlugin().getJedisBox();
+            List<TextComponent> players =
+                    members.parallelStream()
                             .filter(member -> member.role() == role)
-                            .map(member -> users.get(member.uuid()).name())
-                            .collect(Collectors.joining(", "));
+                            .map(member -> {
+                                var presence = jedisBox.getOptional(RedisKeys.playerPresence(member.uuid().toString()), PlayerPresenceData.CODEC, 100, true);
+                                if (presence.isEmpty()) {
+                                    return Component.text(users.get(member.uuid()).name()).color(NamedTextColor.WHITE);
+                                }
+                                if (System.currentTimeMillis() - presence.get().lastSeen() < 60000) {
+                                    return Component.text(users.get(member.uuid()).name()).color(NamedTextColor.GREEN)
+                                            .hoverEvent(HoverEvent.showText(VMessages.formatComponent(player, "command.guild.info.presence.playing", presence.get().server())));
+                                } else {
+                                    String lastOnline = DurationUtil.convertDurationToString(player, Duration.ofMillis(System.currentTimeMillis() - presence.get().lastSeen())).trim();
+                                    String lastOnlineFormatted = VMessages.format(player, "datetime.ago", lastOnline);
+                                    return Component.text(users.get(member.uuid()).name()).color(NamedTextColor.WHITE)
+                                            .hoverEvent(HoverEvent.showText(VMessages.formatComponent(player, "command.guild.info.presence.last_online", lastOnlineFormatted, presence.get().server())));
+                                }
+                            })
+                            .toList();
             String translatedRole = VMessages.format(player, role.getKey());
-            player.sendMessage(VMessages.formatComponent(player, "command.guild.info.role_players", translatedRole, players).color(NamedTextColor.GOLD));
+            player.sendMessage(
+                    Component.text(translatedRole + ": ")
+                            .color(NamedTextColor.GOLD)
+                            .append(Component.join(JoinConfiguration.separator(Component.text(", ", NamedTextColor.WHITE)), players)));
         }
         player.sendMessage(Component.empty());
         player.sendMessage(VMessages.formatComponent(player, "command.guild.info.open").color(NamedTextColor.GOLD)

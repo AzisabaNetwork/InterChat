@@ -1,3 +1,9 @@
+# InterChat configuration file
+
+# InterChat uses external service (provided by Azisaba Network) to fetch additional prefixes and suffixes.
+# Change to true if you want to disable this feature.
+no-workers: false
+
 server-alias:
   liferesource: life
   lifepve: life

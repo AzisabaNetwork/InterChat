@@ -8,12 +8,17 @@ import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
 import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
+import com.velocitypowered.api.proxy.Player;
 import com.velocitypowered.api.proxy.ProxyServer;
+import com.velocitypowered.api.proxy.ServerConnection;
 import com.velocitypowered.api.proxy.messages.LegacyChannelIdentifier;
 import com.velocitypowered.api.proxy.messages.MinecraftChannelIdentifier;
+import com.velocitypowered.api.proxy.server.ServerInfo;
 import net.azisaba.interchat.api.InterChatProviderProvider;
+import net.azisaba.interchat.api.data.PlayerPresenceData;
 import net.azisaba.interchat.api.network.JedisBox;
 import net.azisaba.interchat.api.network.ProxyPacketListener;
+import net.azisaba.interchat.api.network.RedisKeys;
 import net.azisaba.interchat.api.network.Side;
 import net.azisaba.interchat.api.text.Messages;
 import net.azisaba.interchat.api.util.MapEx;
@@ -36,8 +41,10 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
-@Plugin(id = "interchat", name = "InterChat", version = "1.0.0-SNAPSHOT", authors = "Azisaba Network",
+@Plugin(id = "interchat", name = "InterChat", version = "2.12.0", authors = "Azisaba Network",
         url = "https://github.com/AzisabaNetwork/InterChat", description = "Adds guild-like features to Velocity servers",
         dependencies = {@Dependency(id = "luckperms", optional = true)})
 public class VelocityPlugin {
@@ -114,6 +121,16 @@ public class VelocityPlugin {
         registerCommand(new GSShortCommand(this).createCommand());
         registerCommand(new GuildTestCommand().createCommand());
         registerCommand(new GTellCommand().createCommand());
+
+        // update player presence every 30 seconds
+        server.getScheduler().buildTask(this, () -> {
+            for (Player player : server.getAllPlayers()) {
+                Optional<String> serverName = player.getCurrentServer().map(ServerConnection::getServerInfo).map(ServerInfo::getName);
+                if (serverName.isEmpty()) continue;
+                PlayerPresenceData data = new PlayerPresenceData(player.getUniqueId(), serverName.get(), System.currentTimeMillis(), PlayerPresenceData.Cause.INTERCHAT);
+                jedisBox.set(RedisKeys.playerPresence(player.getUniqueId().toString()), PlayerPresenceData.CODEC, data);
+            }
+        }).delay(30, TimeUnit.SECONDS).repeat(30, TimeUnit.SECONDS).schedule();
     }
 
     private void registerCommand(BrigadierCommand command) {

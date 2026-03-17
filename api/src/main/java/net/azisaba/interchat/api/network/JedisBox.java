@@ -10,6 +10,7 @@ import org.jetbrains.annotations.Nullable;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.params.SetParams;
 import xyz.acrylicstyle.util.serialization.codec.Codec;
 import xyz.acrylicstyle.util.serialization.decoder.ByteBufValueDecoder;
 import xyz.acrylicstyle.util.serialization.encoder.ByteBufValueEncoder;
@@ -17,6 +18,7 @@ import xyz.acrylicstyle.util.serialization.encoder.ByteBufValueEncoder;
 import java.io.Closeable;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +49,39 @@ public final class JedisBox implements Closeable {
                 }
             }).get(timeoutMillis, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | TimeoutException | ExecutionException e) {
+            if (e.getCause() instanceof NoSuchElementException) {
+                throw (NoSuchElementException) e.getCause();
+            }
             throw new RuntimeException(e);
+        }
+    }
+
+    public <A> @NotNull Optional<A> getOptional(byte @NotNull [] key, @NotNull Codec<A> codec) {
+        try {
+            return Optional.of(get(key, codec));
+        } catch (NoSuchElementException e) {
+            return Optional.empty();
+        }
+    }
+
+    public <A> @NotNull Optional<A> getOptional(byte @NotNull [] key, @NotNull Codec<A> codec, int timeoutMillis, boolean catchTimeout) {
+        if (catchTimeout) {
+            try {
+                return Optional.of(get(key, codec, timeoutMillis));
+            } catch (NoSuchElementException e) {
+                return Optional.empty();
+            } catch (RuntimeException e) {
+                if (e.getCause() instanceof TimeoutException) {
+                    return Optional.empty();
+                }
+                throw e;
+            }
+        } else {
+            try {
+                return Optional.of(get(key, codec, timeoutMillis));
+            } catch (NoSuchElementException e) {
+                return Optional.empty();
+            }
         }
     }
 
@@ -56,6 +90,14 @@ public final class JedisBox implements Closeable {
             ByteBuf buf = Unpooled.buffer();
             codec.encode(value, new ByteBufValueEncoder(buf));
             jedis.set(key, ByteBufUtil.toByteArray(buf));
+        }
+    }
+
+    public <A> void setWithExpire(byte @NotNull [] key, @NotNull Codec<A> codec, @NotNull A value, int expire) {
+        try (Jedis jedis = jedisPool.getResource()) {
+            ByteBuf buf = Unpooled.buffer();
+            codec.encode(value, new ByteBufValueEncoder(buf));
+            jedis.set(key, ByteBufUtil.toByteArray(buf), new SetParams().ex(expire));
         }
     }
 

@@ -15,4 +15,9 @@ public final class RedisKeys {
     public static byte @NotNull [] azisabaReportPlayerPos(@NotNull UUID uuid) {
         return ("azisaba_report:player_pos:" + uuid).getBytes(StandardCharsets.UTF_8);
     }
+
+    @Contract(pure = true)
+    public static byte @NotNull [] playerPresence(@NotNull String uuid) {
+        return ("interchat:player_presence:" + uuid).getBytes(StandardCharsets.UTF_8);
+    }
 }

@@ -10,12 +10,14 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 public final class VMessages {
+    private static final Pattern URL_PATTERN = Pattern.compile("(https?://[\\w/:%#$&?()~=.+\\-]+)");
     private static final LegacyComponentSerializer LEGACY_COMPONENT_SERIALIZER =
             LegacyComponentSerializer.builder()
                     .character('&')
-                    .extractUrls()
+                    .extractUrls(URL_PATTERN)
                     .hexColors()
                     .build();
     private static final PlainTextComponentSerializer PLAIN_TEXT_COMPONENT_SERIALIZER = PlainTextComponentSerializer.plainText();
